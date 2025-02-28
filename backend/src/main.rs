@@ -1,43 +1,84 @@
-use axum::{routing::get, Router};
-use crate::config::AppConfig;
-use crate::db::init_db;
-use crate::routes::auth::auth_routes;
-use crate::routes::auth::AppState;
-use crate::services::auth_service::AuthService;
+use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::post, Router};
 use std::net::SocketAddr;
-use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+#[cfg(feature = "wasm")]
+use std::path::PathBuf;
+use tower_sessions::{
+    cookie::{time::Duration, SameSite},
+    Expiry, MemoryStore, SessionManagerLayer,
+};
+use tower_http::cors::CorsLayer;
+use http::{Method,header};
+use crate::auth::{finish_authentication, finish_register, start_authentication, start_register}; // Adjusted
+use crate::startup::AppState; // Adjusted
 
-mod config;
-mod db;
-mod models;
-mod services;
-mod routes;
+#[macro_use]
+extern crate tracing;
+
+mod auth;
+mod startup;
+mod error;
+
+#[cfg(all(feature = "javascript", feature = "wasm", not(doc)))]
+compile_error!("Feature \"javascript\" and feature \"wasm\" cannot be enabled at the same time");
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "INFO");
+    }
+    tracing_subscriber::fmt::init();
 
-    let config = AppConfig::load();
-    let addr = config.addr;
+    let app_state = AppState::new().await;
 
-    let pool = init_db(&config)
-        .await
-        .expect("Failed to initialize database");
+    let session_store = MemoryStore::default();
 
-    let auth_service = AuthService::new();
-    let app_state = AppState { pool, auth_service };
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(vec![header::CONTENT_TYPE])
+        .allow_origin("http://localhost:3000".parse::<axum::http::HeaderValue>().unwrap())
+        .allow_credentials(true);
 
     let app = Router::new()
-        .route("/", get(|| async { "Hello, Axum!" }))
-        .nest("/api/auth", auth_routes())
-        .layer(TraceLayer::new_for_http())
-        .with_state(app_state);
+        .route("/register_start/:username", post(start_register))
+        .route("/register_finish", post(finish_register))
+        .route("/login_start/:username", post(start_authentication))
+        .route("/login_finish", post(finish_authentication))
+        .layer(Extension(app_state))
+        .layer(
+            SessionManagerLayer::new(session_store)
+                .with_name("webauthnrs")
+                .with_same_site(SameSite::Strict)
+                .with_secure(false)
+                .with_expiry(Expiry::OnInactivity(Duration::seconds(360))),
+        )
+        .layer(cors)
+        .fallback(handler_404);
 
-    println!("🚀 Server running at http://{}", addr);
+    #[cfg(feature = "wasm")]
+    if !PathBuf::from("./assets/wasm").exists() {
+        panic!("Can't find WASM files to serve!");
+    }
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    #[cfg(feature = "wasm")]
+    let app = Router::new()
+        .merge(app)
+        .nest_service("/", tower_http::services::ServeDir::new("assets/wasm"));
+
+    #[cfg(feature = "javascript")]
+    let app = Router::new()
+        .merge(app)
+        .nest_service("/", tower_http::services::ServeDir::new("assets/js"));
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    info!("listening on {addr}");
+
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .expect("Unable to spawn tcp listener");
+
     axum::serve(listener, app).await.unwrap();
+}
+
+async fn handler_404() -> impl IntoResponse {
+    (StatusCode::NOT_FOUND, "Nothing to see here")
 }
