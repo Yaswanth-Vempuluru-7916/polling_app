@@ -1,3 +1,4 @@
+// src/main.rs
 use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::post, Router};
 use std::net::SocketAddr;
 #[cfg(feature = "wasm")]
@@ -7,9 +8,10 @@ use tower_sessions::{
     Expiry, MemoryStore, SessionManagerLayer,
 };
 use tower_http::cors::CorsLayer;
-use http::{Method,header};
-use crate::auth::{finish_authentication, finish_register, start_authentication, start_register}; // Adjusted
-use crate::startup::AppState; // Adjusted
+use http::{Method, header};
+use crate::auth::{finish_authentication, finish_register, start_authentication, start_register};
+use crate::startup::AppState;
+use crate::routes::polls::create_poll;
 
 #[macro_use]
 extern crate tracing;
@@ -17,6 +19,8 @@ extern crate tracing;
 mod auth;
 mod startup;
 mod error;
+mod models;
+mod routes;
 
 #[cfg(all(feature = "javascript", feature = "wasm", not(doc)))]
 compile_error!("Feature \"javascript\" and feature \"wasm\" cannot be enabled at the same time");
@@ -43,6 +47,7 @@ async fn main() {
         .route("/register_finish", post(finish_register))
         .route("/login_start/:username", post(start_authentication))
         .route("/login_finish", post(finish_authentication))
+        .route("/api/polls", post(create_poll)) // New poll creation route
         .layer(Extension(app_state))
         .layer(
             SessionManagerLayer::new(session_store)

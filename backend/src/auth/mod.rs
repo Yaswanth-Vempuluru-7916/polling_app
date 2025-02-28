@@ -1,3 +1,4 @@
+// src/auth/mod.rs
 use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
@@ -8,7 +9,7 @@ use webauthn_rs::prelude::*;
 use mongodb::bson::doc;
 use uuid::Uuid;
 use crate::error::WebauthnError;
-use crate::startup::{AppState, UserData}; // Adjusted
+use crate::startup::{AppState, UserData};
 
 pub async fn start_register(
     Extension(app_state): Extension<AppState>,
@@ -94,7 +95,7 @@ pub async fn finish_register(
             };
 
             let update_doc = doc! { 
-                "$setOnInsert": { "unique_id": user_unique_id.to_string() }, // Convert to string
+                "$setOnInsert": { "unique_id": user_unique_id.to_string() },
                 "$push": { "passkeys": mongodb::bson::to_bson(&user_data.passkeys[0])? } 
             };
             info!("Attempting to upsert user {} with update: {:?}", username, update_doc);
@@ -233,6 +234,11 @@ pub async fn finish_authentication(
             {
                 Ok(_) => {
                     info!("Updated passkeys for user with UUID {} in MongoDB", user_unique_id);
+                    // Set user_id in session after successful authentication
+                    if let Err(e) = session.insert("user_id", user_unique_id).await {
+                        error!("Failed to set user_id in session: {:?}", e);
+                        return Err(WebauthnError::InvalidSessionState(e));
+                    }
                     StatusCode::OK
                 }
                 Err(e) => {
