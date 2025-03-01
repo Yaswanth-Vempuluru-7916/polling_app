@@ -11,8 +11,7 @@ use tower_http::cors::CorsLayer;
 use http::{Method, header};
 use crate::auth::{finish_authentication, finish_register, start_authentication, start_register};
 use crate::startup::AppState;
-use crate::routes::polls::create_poll;
-
+use crate::routes::polls;
 #[macro_use]
 extern crate tracing;
 
@@ -47,7 +46,7 @@ async fn main() {
         .route("/register_finish", post(finish_register))
         .route("/login_start/:username", post(start_authentication))
         .route("/login_finish", post(finish_authentication))
-        .route("/api/polls", post(create_poll)) // New poll creation route
+        .merge(polls::router()) // Add polls router
         .layer(Extension(app_state))
         .layer(
             SessionManagerLayer::new(session_store)

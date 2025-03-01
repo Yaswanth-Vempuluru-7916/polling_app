@@ -1,4 +1,4 @@
-// components/PollForm.tsx
+// components/polls/PollForm.tsx
 'use client';
 
 import { useCallback } from 'react';
