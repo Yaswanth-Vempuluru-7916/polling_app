@@ -5,6 +5,8 @@ use serde::{Serialize, Deserialize};
 use dotenv::dotenv;
 use tracing::info;
 use uuid::Uuid;
+use tokio::sync::broadcast::{self, Sender};
+use crate::models::Poll;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserData {
@@ -33,6 +35,7 @@ where
 pub struct AppState {
     pub webauthn: Arc<Webauthn>,
     pub db: Database,
+    pub broadcast_tx: Arc<Sender<Poll>>, // Add broadcast channel
 }
 
 impl AppState {
@@ -51,9 +54,12 @@ impl AppState {
             .await
             .expect("Failed to connect to MongoDB");
         let db = client.database("polling-app");
-        info!("Using database: webauthn_db, collection: users");
+        info!("Using database: polling_db, collection: users");
 
-        Self { webauthn, db }
+        let (tx, _) = broadcast::channel::<Poll>(100); // Create channel once
+        let broadcast_tx = Arc::new(tx);
+
+        Self { webauthn, db, broadcast_tx }
     }
 
     pub fn users_collection(&self) -> mongodb::Collection<UserData> {

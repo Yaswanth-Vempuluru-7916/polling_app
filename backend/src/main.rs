@@ -14,7 +14,6 @@ use crate::startup::AppState;
 use crate::routes::polls;
 use crate::websocket::websocket_handler;
 
-
 #[macro_use]
 extern crate tracing;
 
@@ -36,7 +35,6 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let app_state = AppState::new().await;
-    let broadcast_tx = websocket::get_broadcast_sender();
 
     let session_store = MemoryStore::default();
 
@@ -51,7 +49,7 @@ async fn main() {
         .route("/register_finish", post(finish_register))
         .route("/login_start/:username", post(start_authentication))
         .route("/login_finish", post(finish_authentication))
-        .merge(polls::router(broadcast_tx.clone()))
+        .merge(polls::router(app_state.broadcast_tx.clone())) // Use app_state's tx
         .route("/ws", axum::routing::get(websocket_handler))
         .layer(Extension(app_state))
         .layer(

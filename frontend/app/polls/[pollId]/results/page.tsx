@@ -1,4 +1,4 @@
-// app/polls/[pollId]/results/page.tsx
+// app/polls/[pollId]/results/page.tsx (confirming)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,7 +13,7 @@ interface PollOption {
 
 interface Poll {
   id: string;
-  title: string;
+  title: String;
   options: PollOption[];
   isClosed: boolean;
 }
