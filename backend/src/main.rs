@@ -12,6 +12,9 @@ use http::{Method, header};
 use crate::auth::{finish_authentication, finish_register, start_authentication, start_register};
 use crate::startup::AppState;
 use crate::routes::polls;
+use crate::websocket::websocket_handler;
+
+
 #[macro_use]
 extern crate tracing;
 
@@ -20,6 +23,7 @@ mod startup;
 mod error;
 mod models;
 mod routes;
+mod websocket;
 
 #[cfg(all(feature = "javascript", feature = "wasm", not(doc)))]
 compile_error!("Feature \"javascript\" and feature \"wasm\" cannot be enabled at the same time");
@@ -32,6 +36,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let app_state = AppState::new().await;
+    let broadcast_tx = websocket::get_broadcast_sender();
 
     let session_store = MemoryStore::default();
 
@@ -46,7 +51,8 @@ async fn main() {
         .route("/register_finish", post(finish_register))
         .route("/login_start/:username", post(start_authentication))
         .route("/login_finish", post(finish_authentication))
-        .merge(polls::router()) // Add polls router
+        .merge(polls::router(broadcast_tx.clone()))
+        .route("/ws", axum::routing::get(websocket_handler))
         .layer(Extension(app_state))
         .layer(
             SessionManagerLayer::new(session_store)

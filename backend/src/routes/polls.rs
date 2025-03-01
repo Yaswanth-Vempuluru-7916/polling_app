@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 // src/routes/polls.rs
 use axum::{
     extract::{Extension, Json, Path},
@@ -22,7 +24,7 @@ pub struct CreatePollRequest {
 
 #[derive(Deserialize)]
 pub struct VoteRequest {
-    #[serde(rename = "optionId")] // Match frontend's camelCase
+    #[serde(rename = "optionId")]
     pub option_id: i32,
 }
 
@@ -35,11 +37,11 @@ pub struct PollResponse {
     pub is_closed: bool,
 }
 
-pub fn router() -> Router {
+pub fn router(broadcast_tx: Arc<tokio::sync::broadcast::Sender<Poll>>) -> Router {
     Router::new()
         .route("/api/polls", post(create_poll))
         .route("/api/polls/:poll_id", get(get_poll))
-        .route("/api/polls/:poll_id/vote", post(vote_on_poll))
+        .route("/api/polls/:poll_id/vote", post(move |ext, session, path, json| vote_on_poll(ext, session, path, json, broadcast_tx.clone())))
 }
 
 pub async fn create_poll(
@@ -133,6 +135,7 @@ pub async fn vote_on_poll(
     session: Session,
     Path(poll_id): Path<String>,
     Json(vote): Json<VoteRequest>,
+    broadcast_tx: Arc<tokio::sync::broadcast::Sender<Poll>>,
 ) -> Result<impl IntoResponse, WebauthnError> {
     let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
     let collection = app_state.db.collection::<Poll>("polls");
@@ -154,6 +157,11 @@ pub async fn vote_on_poll(
         Ok(result) if result.matched_count > 0 => {
             session.insert(&voted_key, true).await?;
             info!("Vote recorded for poll {} on option {}", poll_id, vote.option_id);
+
+            // Fetch updated poll and broadcast
+            if let Ok(Some(updated_poll)) = collection.find_one(doc! { "_id": poll_id }).await {
+                let _ = broadcast_tx.send(updated_poll);
+            }
             Ok(StatusCode::OK)
         }
         Ok(_) => {
