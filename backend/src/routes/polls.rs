@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 // src/routes/polls.rs
+use std::sync::Arc;
 use axum::{
     extract::{Extension, Json, Path},
     http::StatusCode,
@@ -8,14 +7,16 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use futures::TryStreamExt;
 use tower_sessions::Session;
 use serde::{Deserialize, Serialize};
-use mongodb::bson::{doc, oid::ObjectId};
+use mongodb::bson::{doc, oid::ObjectId, Binary};
 use chrono::Utc;
 use crate::error::WebauthnError;
 use crate::startup::AppState;
 use crate::models::{Poll, PollOption};
 use uuid::Uuid;
+
 #[derive(Deserialize)]
 pub struct CreatePollRequest {
     pub title: String,
@@ -42,6 +43,9 @@ pub fn router(broadcast_tx: Arc<tokio::sync::broadcast::Sender<Poll>>) -> Router
         .route("/api/polls", post(create_poll))
         .route("/api/polls/:poll_id", get(get_poll))
         .route("/api/polls/:poll_id/vote", post(move |ext, session, path, json| vote_on_poll(ext, session, path, json, broadcast_tx.clone())))
+        .route("/api/polls/manage", get(get_user_polls))
+        .route("/api/polls/:poll_id/close", post(close_poll))
+        .route("/api/polls/:poll_id/reset", post(reset_poll))
 }
 
 pub async fn create_poll(
@@ -158,7 +162,6 @@ pub async fn vote_on_poll(
             session.insert(&voted_key, true).await?;
             info!("Vote recorded for poll {} on option {}", poll_id, vote.option_id);
 
-            // Fetch updated poll and broadcast
             if let Ok(Some(updated_poll)) = collection.find_one(doc! { "_id": poll_id }).await {
                 let _ = broadcast_tx.send(updated_poll);
             }
@@ -170,6 +173,131 @@ pub async fn vote_on_poll(
         }
         Err(e) => {
             error!("Failed to update vote for poll {}: {:?}", poll_id, e);
+            Err(WebauthnError::MongoDBError(e))
+        }
+    }
+}
+
+pub async fn get_user_polls(
+    Extension(app_state): Extension<AppState>,
+    session: Session,
+) -> Result<impl IntoResponse, WebauthnError> {
+    let user_unique_id: Uuid = session
+        .get("user_id")
+        .await?
+        .ok_or_else(|| {
+            error!("No user_id found in session for fetching polls");
+            WebauthnError::CorruptSession
+        })?;
+
+    info!("Fetching polls for user_id: {}", user_unique_id);
+    let collection = app_state.db.collection::<Poll>("polls");
+    let uuid_binary = Binary {
+        subtype: mongodb::bson::spec::BinarySubtype::Uuid,
+        bytes: user_unique_id.as_bytes().to_vec(),
+    };
+    let cursor = collection
+        .find(doc! { "creator_id": uuid_binary })
+        .await
+        .map_err(|e| WebauthnError::MongoDBError(e))?;
+
+    let polls: Vec<Poll> = cursor
+        .try_collect()
+        .await
+        .map_err(|e| WebauthnError::MongoDBError(e))?;
+    info!("Found {} polls for user {}", polls.len(), user_unique_id);
+
+    let response: Vec<PollResponse> = polls.into_iter().map(|poll| PollResponse {
+        id: poll.id.unwrap().to_hex(),
+        title: poll.title,
+        options: poll.options,
+        is_closed: poll.is_closed,
+    }).collect();
+
+    Ok(Json(response))
+}
+
+pub async fn close_poll(
+    Extension(app_state): Extension<AppState>,
+    session: Session,
+    Path(poll_id): Path<String>,
+) -> Result<impl IntoResponse, WebauthnError> {
+    let user_unique_id: Uuid = session
+        .get("user_id")
+        .await?
+        .ok_or_else(|| {
+            error!("No user_id found in session for closing poll");
+            WebauthnError::CorruptSession
+        })?;
+
+    let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
+    let collection = app_state.db.collection::<Poll>("polls");
+    let uuid_binary = Binary {
+        subtype: mongodb::bson::spec::BinarySubtype::Uuid,
+        bytes: user_unique_id.as_bytes().to_vec(),
+    };
+
+    let update_result = collection
+        .update_one(
+            doc! { "_id": poll_id, "creator_id": uuid_binary },
+            doc! { "$set": { "is_closed": true } },
+        )
+        .await;
+
+    match update_result {
+        Ok(result) if result.matched_count > 0 => {
+            info!("Poll {} closed by user {}", poll_id, user_unique_id);
+            Ok(StatusCode::OK)
+        }
+        Ok(_) => {
+            error!("Poll {} not found or user {} not authorized", poll_id, user_unique_id);
+            Err(WebauthnError::Unknown)
+        }
+        Err(e) => {
+            error!("Failed to close poll {}: {:?}", poll_id, e);
+            Err(WebauthnError::MongoDBError(e))
+        }
+    }
+}
+
+pub async fn reset_poll(
+    Extension(app_state): Extension<AppState>,
+    session: Session,
+    Path(poll_id): Path<String>,
+) -> Result<impl IntoResponse, WebauthnError> {
+    let user_unique_id: Uuid = session
+        .get("user_id")
+        .await?
+        .ok_or_else(|| {
+            error!("No user_id found in session for resetting poll");
+            WebauthnError::CorruptSession
+        })?;
+
+    let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
+    let collection = app_state.db.collection::<Poll>("polls");
+    let uuid_binary = Binary {
+        subtype: mongodb::bson::spec::BinarySubtype::Uuid,
+        bytes: user_unique_id.as_bytes().to_vec(),
+    };
+
+    let update_result = collection
+        .update_one(
+            doc! { "_id": poll_id, "creator_id": uuid_binary },
+            doc! { "$set": { "options.$[].votes": 0 } },
+        )
+        .await;
+
+    match update_result {
+        Ok(result) if result.matched_count > 0 => {
+            info!("Poll {} votes reset by user {}", poll_id, user_unique_id);
+            Ok(StatusCode::OK)
+        }
+        Ok(_) => {
+            error!("Poll {} not found or user {} not authorized", poll_id, user_unique_id);
+            Err(WebauthnError::Unknown)
+        }
+        Err(e) => {
+            error!("Failed to reset poll {}: {:?}", poll_id, e);
             Err(WebauthnError::MongoDBError(e))
         }
     }
