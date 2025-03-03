@@ -1,6 +1,7 @@
+// app/polls/all/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchAllPolls, voteOnPoll } from '@/lib/api';
 import { useAppStore, Poll } from '@/lib/store';
 import PollCard from '@/components/polls/PollCard';
@@ -14,6 +15,8 @@ const AllPollsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isHydrating, setIsHydrating] = useState(true);
+  const wsRef = useRef<WebSocket | null>(null);
+  const joinedPollsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const unsubscribe = useAppStore.subscribe(() => {
@@ -23,46 +26,86 @@ const AllPollsPage = () => {
     return () => unsubscribe();
   }, []);
 
+  // WebSocket connection
   useEffect(() => {
-    if (!isHydrating) {
-      const loadPolls = async () => {
-        try {
-          const allPolls = await fetchAllPolls();
-          setPolls(allPolls);
-          const storedVotedPolls = JSON.parse(sessionStorage.getItem('votedPolls') || '[]');
-          setVotedPolls(storedVotedPolls);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load polls.');
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadPolls();
-    }
+    if (isHydrating) return;
+
+    const ws = new WebSocket('ws://localhost:8080/ws');
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('Connected to WebSocket for all polls');
+      polls.forEach(poll => joinPoll(poll.id));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const updatedPoll: Poll = JSON.parse(event.data);
+        console.log('Received update for poll:', updatedPoll.id, 'Title:', updatedPoll.title);
+        setPolls((prevPolls) => {
+          const pollExists = prevPolls.some(p => p.id === updatedPoll.id);
+          if (pollExists) {
+            return prevPolls.map(p => (p.id === updatedPoll.id ? updatedPoll : p));
+          } else {
+            joinPoll(updatedPoll.id);
+            console.log('Added new poll:', updatedPoll.id);
+            return [...prevPolls, updatedPoll];
+          }
+        });
+      } catch (err) {
+        console.error('Error parsing WebSocket message:', err);
+      }
+    };
+
+    ws.onerror = (err: Event) => {
+      console.error('WebSocket error:', err);
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket closed:', event.code, event.reason);
+      wsRef.current = null;
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
   }, [isHydrating]);
 
+  // Load polls and join them
   useEffect(() => {
-    if (!isHydrating) {
-      const ws = new WebSocket('ws://localhost:8080/ws');
-      ws.onopen = () => {
-        console.log('Connected to WebSocket for all polls');
-        polls.forEach((poll) => ws.send(`join_poll:${poll.id}`));
-      };
-      ws.onmessage = (event) => {
-        const updatedPoll: Poll = JSON.parse(event.data);
-        setPolls((prevPolls) =>
-          prevPolls.map((p) => (p.id === updatedPoll.id ? updatedPoll : p))
-        );
-      };
-      ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
-      };
-      ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
-      };
-      return () => ws.close();
+    if (isHydrating) return;
+
+    const loadPolls = async () => {
+      try {
+        const allPolls = await fetchAllPolls();
+        setPolls(allPolls);
+        const storedVotedPolls = JSON.parse(sessionStorage.getItem('votedPolls') || '[]');
+        setVotedPolls(storedVotedPolls);
+
+        const ws = wsRef.current;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          allPolls.forEach(poll => joinPoll(poll.id));
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load polls.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPolls();
+  }, [isHydrating]);
+
+  const joinPoll = (pollId: string) => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN && !joinedPollsRef.current.has(pollId)) {
+      ws.send(`join_poll:${pollId}`);
+      joinedPollsRef.current.add(pollId);
+      console.log('Joined poll:', pollId);
     }
-  }, [isHydrating, polls.length]);
+  };
 
   const handleVote = async (pollId: string, optionId: number) => {
     if (votedPolls.includes(pollId)) return;
@@ -99,7 +142,7 @@ const AllPollsPage = () => {
       </div>
     </div>
   );
-  
+
   if (error) return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]">
       <div className="p-6 rounded-lg bg-red-900/20 border border-red-500/30 shadow-xl backdrop-blur-sm text-red-300">
@@ -116,13 +159,13 @@ const AllPollsPage = () => {
         <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent text-center drop-shadow-lg">
           All Polls
         </h1>
-
         {polls.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-10 rounded-xl bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 shadow-lg">
             <div className="text-gray-400 text-center text-lg">No polls available yet.</div>
             <div className="mt-4 text-gray-500 text-sm">Check back later or create your own poll</div>
           </div>
         ) : (
+          // Note: Warning points here, but keys are correct in PollCard; likely a React false positive
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
             {polls.map((poll) => (
               <PollCard

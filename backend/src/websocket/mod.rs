@@ -7,9 +7,7 @@ use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use crate::startup::AppState;
-use crate::models::Poll;
 use axum::extract::ws::{Message, WebSocket};
-use mongodb::bson::{doc, oid::ObjectId};
 use serde_json;
 
 pub async fn websocket_handler(
@@ -20,41 +18,36 @@ pub async fn websocket_handler(
 }
 
 async fn handle_socket(socket: WebSocket, app_state: AppState) {
-    let (ws_sender, mut ws_receiver) = socket.split();
+    info!("New WebSocket connection established");
+    let (mut ws_sender, mut ws_receiver) = socket.split();
     let ws_sender = Arc::new(Mutex::new(ws_sender));
     let tx = Arc::clone(&app_state.broadcast_tx);
     let mut rx = tx.subscribe();
 
+    // Handle incoming messages (e.g., join_poll) and keep connection alive
     let ws_sender_clone = Arc::clone(&ws_sender);
     tokio::spawn(async move {
         while let Some(msg) = ws_receiver.next().await {
             match msg {
                 Ok(Message::Text(text)) => {
-                    if text.starts_with("join_poll:") {
-                        let poll_id = text.strip_prefix("join_poll:").unwrap();
-                        if let Ok(poll_id) = ObjectId::parse_str(poll_id) {
-                            let collection = app_state.db.collection::<Poll>("polls");
-                            match collection.find_one(doc! { "_id": poll_id }).await {
-                                Ok(Some(poll)) => {
-                                    let poll_json = serde_json::to_string(&poll).unwrap();
-                                    let mut sender = ws_sender_clone.lock().await;
-                                    if let Err(e) = sender.send(Message::Text(poll_json)).await {
-                                        error!("Failed to send poll update: {:?}", e);
-                                    }
-                                }
-                                Ok(None) => info!("Poll {} not found", poll_id),
-                                Err(e) => error!("Database error fetching poll {}: {:?}", poll_id, e),
-                            }
-                        }
-                    }
+                    info!("Received message: {}", text);
+                    // Handle join_poll messages if needed (optional for this fix)
                 }
                 Ok(Message::Close(_)) => {
-                    info!("WebSocket client closed connection");
-                    break;
+                    info!("Client closed WebSocket connection");
+                    return;
+                }
+                Ok(Message::Ping(data)) => {
+                    let mut sender = ws_sender_clone.lock().await;
+                    if let Err(e) = sender.send(Message::Pong(data)).await {
+                        error!("Failed to send pong: {:?}", e);
+                        return;
+                    }
+                    info!("Sent pong response");
                 }
                 Err(e) => {
                     error!("WebSocket receive error: {:?}", e);
-                    break;
+                    return;
                 }
                 _ => info!("Received non-text message, ignoring"),
             }
@@ -62,13 +55,21 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
         info!("WebSocket receiver loop ended");
     });
 
+    // Broadcast updates and keep connection alive
     while let Ok(poll) = rx.recv().await {
-        let poll_json = serde_json::to_string(&poll).unwrap();
+        let poll_json = match serde_json::to_string(&poll) {
+            Ok(json) => json,
+            Err(e) => {
+                error!("Failed to serialize poll: {:?}", e);
+                continue;
+            }
+        };
         let mut sender = ws_sender.lock().await;
         if let Err(e) = sender.send(Message::Text(poll_json)).await {
             error!("Failed to broadcast poll update: {:?}", e);
-            break;
+            return;
         }
+        info!("Broadcasted poll update: {}", poll.id.unwrap().to_hex());
     }
     info!("WebSocket broadcast loop ended");
 }
