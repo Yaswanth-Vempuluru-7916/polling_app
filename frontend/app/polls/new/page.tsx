@@ -6,6 +6,7 @@ import PollForm from '@/components/polls/PollForm';
 import { createPoll } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
+import Navbar from '@/components/Navbar';
 
 const NewPollPage = () => {
   const router = useRouter();
@@ -17,25 +18,24 @@ const NewPollPage = () => {
   ]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isHydrating, setIsHydrating] = useState(true); // New state to track rehydration
+  const [isHydrating, setIsHydrating] = useState(true);
 
   useEffect(() => {
-    // Wait for Zustand to rehydrate from localStorage
     const unsubscribe = useAppStore.subscribe(() => {
-      setIsHydrating(false); // Rehydration complete when state updates
+      setIsHydrating(false);
     });
-    setTimeout(() => setIsHydrating(false), 100); // Fallback in case subscribe doesn’t fire
-    return () => unsubscribe(); // Cleanup subscription
+    setTimeout(() => setIsHydrating(false), 100);
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
     if (!isHydrating && !user) {
-      router.push('/login'); // Only redirect after rehydration if user is still null
+      router.push('/login');
     }
   }, [user, router, isHydrating]);
 
-  if (isHydrating) return <div className="text-center p-4">Loading...</div>; // Wait for rehydration
-  if (!user) return null; // Redirect happens here if no user after rehydration
+  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
+  if (!user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,17 +73,20 @@ const NewPollPage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Create a New Poll</h1>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      <PollForm
-        title={title}
-        setTitle={setTitle}
-        options={options}
-        setOptions={setOptions}
-        onSubmit={handleSubmit}
-        loading={loading}
-      />
+    <div className="min-h-screen bg-gray-100">
+      <Navbar />
+      <div className="max-w-2xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Create a New Poll</h1>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
+        <PollForm
+          title={title}
+          setTitle={setTitle}
+          options={options}
+          setOptions={setOptions}
+          onSubmit={handleSubmit}
+          loading={loading}
+        />
+      </div>
     </div>
   );
 };

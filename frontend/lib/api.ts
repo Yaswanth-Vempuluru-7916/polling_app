@@ -14,6 +14,11 @@ interface CreatePollData {
   options: string[];
 }
 
+interface EditPollData {
+  title: string;
+  options: string[];
+}
+
 export const createPoll = async (pollData: CreatePollData): Promise<Poll> => {
   try {
     const response: AxiosResponse<Poll> = await api.post('/api/polls', pollData);
@@ -79,6 +84,36 @@ export const resetPoll = async (pollId: string): Promise<void> => {
   }
 };
 
+export const deletePoll = async (pollId: string): Promise<void> => {
+  try {
+    await api.post(`/api/polls/${pollId}/delete`);
+    useAppStore.getState().setPolls(
+      useAppStore.getState().polls.filter((p) => p.id !== pollId)
+    );
+  } catch (error) {
+    throw handleError(error, 'Failed to delete poll');
+  }
+};
+
+export const editPoll = async (pollId: string, pollData: EditPollData): Promise<Poll> => {
+  try {
+    const response: AxiosResponse<Poll> = await api.post(`/api/polls/${pollId}/edit`, pollData);
+    useAppStore.getState().updatePoll(response.data);
+    return response.data;
+  } catch (error) {
+    throw handleError(error, 'Failed to edit poll');
+  }
+};
+
+export const logout = async (): Promise<void> => {
+  try {
+    await api.get('/api/logout');
+    useAppStore.getState().clearState();
+  } catch (error) {
+    throw handleError(error, 'Failed to logout');
+  }
+};
+
 function handleError(error: unknown, defaultMessage: string): Error {
   if (axios.isAxiosError(error)) {
     const message = error.response?.data || defaultMessage;
@@ -86,14 +121,5 @@ function handleError(error: unknown, defaultMessage: string): Error {
   }
   return new Error('An unexpected error occurred');
 }
-
-export const logout = async (): Promise<void> => {
-  try {
-    await api.get('/api/logout');
-    useAppStore.getState().clearState(); // Clear Zustand store
-  } catch (error) {
-    throw handleError(error, 'Failed to logout');
-  }
-};
 
 export default api;

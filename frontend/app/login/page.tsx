@@ -6,6 +6,7 @@ import { startAuth } from '@/lib/auth';
 import { useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import Navbar from '@/components/Navbar';
 
 const LoginPage = () => {
   const [username, setUsername] = useState<string>('');
@@ -21,30 +22,33 @@ const LoginPage = () => {
       setUser({ username: userData.username, id: userData.id });
       console.log('User set in store:', useAppStore.getState().user);
       setMessage('Authentication successful!');
-      router.push('/polls/new');
+      const intendedPath = document.referrer.includes('/polls/manage') ? '/polls/manage' : '/polls/new';
+      router.push(intendedPath);
     } catch (error) {
       setMessage(`Error: ${(error as Error).message}`);
     }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Login with WebAuthn</h1>
-      <input
-        type="text"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        placeholder="Enter username"
-        style={{ marginBottom: '10px', padding: '5px' }}
-      />
-      <br />
-      <button
-        onClick={handleLogin}
-        style={{ margin: '10px', padding: '5px 10px', background: '#0070f3', color: 'white', border: 'none' }}
-      >
-        Login
-      </button>
-      <p>{message}</p>
+    <div className="min-h-screen bg-gray-100">
+      <Navbar />
+      <div className="max-w-md mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4 text-center">Login with WebAuthn</h1>
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Enter username"
+          className="w-full p-2 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          onClick={handleLogin}
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+        >
+          Login
+        </button>
+        {message && <p className={`mt-4 text-center ${message.includes('Error') ? 'text-red-500' : 'text-green-500'}`}>{message}</p>}
+      </div>
     </div>
   );
 };

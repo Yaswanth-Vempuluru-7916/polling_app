@@ -29,6 +29,12 @@ pub struct VoteRequest {
     pub option_id: i32,
 }
 
+#[derive(Deserialize)]
+pub struct EditPollRequest {
+    pub title: String,
+    pub options: Vec<String>,
+}
+
 #[derive(Serialize)]
 pub struct PollResponse {
     pub id: String,
@@ -46,6 +52,8 @@ pub fn router(broadcast_tx: Arc<tokio::sync::broadcast::Sender<Poll>>) -> Router
         .route("/api/polls/manage", get(get_user_polls))
         .route("/api/polls/:poll_id/close", post(close_poll))
         .route("/api/polls/:poll_id/reset", post(reset_poll))
+        .route("/api/polls/:poll_id/delete", post(delete_poll)) // New endpoint
+        .route("/api/polls/:poll_id/edit", post(edit_poll)) // New endpoint
 }
 
 pub async fn create_poll(
@@ -301,4 +309,117 @@ pub async fn reset_poll(
             Err(WebauthnError::MongoDBError(e))
         }
     }
+}
+
+pub async fn delete_poll(
+    Extension(app_state): Extension<AppState>,
+    session: Session,
+    Path(poll_id): Path<String>,
+) -> Result<impl IntoResponse, WebauthnError> {
+    let user_unique_id: Uuid = session
+        .get("user_id")
+        .await?
+        .ok_or_else(|| {
+            error!("No user_id found in session for deleting poll");
+            WebauthnError::CorruptSession
+        })?;
+
+    let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
+    let collection = app_state.db.collection::<Poll>("polls");
+    let uuid_binary = Binary {
+        subtype: mongodb::bson::spec::BinarySubtype::Uuid,
+        bytes: user_unique_id.as_bytes().to_vec(),
+    };
+
+    let delete_result = collection
+        .delete_one(doc! { "_id": poll_id, "creator_id": uuid_binary })
+        .await;
+
+    match delete_result {
+        Ok(result) if result.deleted_count > 0 => {
+            info!("Poll {} deleted by user {}", poll_id, user_unique_id);
+            Ok(StatusCode::OK)
+        }
+        Ok(_) => {
+            error!("Poll {} not found or user {} not authorized", poll_id, user_unique_id);
+            Err(WebauthnError::Unknown)
+        }
+        Err(e) => {
+            error!("Failed to delete poll {}: {:?}", poll_id, e);
+            Err(WebauthnError::MongoDBError(e))
+        }
+    }
+}
+
+pub async fn edit_poll(
+    Extension(app_state): Extension<AppState>,
+    session: Session,
+    Path(poll_id): Path<String>,
+    Json(edit_data): Json<EditPollRequest>,
+) -> Result<impl IntoResponse, WebauthnError> {
+    let user_unique_id: Uuid = session
+        .get("user_id")
+        .await?
+        .ok_or_else(|| {
+            error!("No user_id found in session for editing poll");
+            WebauthnError::CorruptSession
+        })?;
+
+    let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
+    let collection = app_state.db.collection::<Poll>("polls");
+    let uuid_binary = Binary {
+        subtype: mongodb::bson::spec::BinarySubtype::Uuid,
+        bytes: user_unique_id.as_bytes().to_vec(),
+    };
+
+    if edit_data.title.trim().is_empty() {
+        return Err(WebauthnError::Unknown);
+    }
+    let valid_options: Vec<String> = edit_data.options.into_iter().filter(|opt| !opt.trim().is_empty()).collect();
+    if valid_options.len() < 2 {
+        return Err(WebauthnError::Unknown);
+    }
+
+    let new_options = valid_options
+        .into_iter()
+        .enumerate()
+        .map(|(i, text)| PollOption {
+            id: (i + 1) as i32,
+            text,
+            votes: 0, // Reset votes on edit
+        })
+        .collect::<Vec<PollOption>>();
+
+    let update_result = collection
+        .update_one(
+            doc! { "_id": poll_id, "creator_id": uuid_binary },
+            doc! { "$set": { "title": edit_data.title, "options": mongodb::bson::to_bson(&new_options)? } },
+        )
+        .await;
+
+        match update_result {
+            Ok(result) if result.matched_count > 0 => {
+                info!("Poll {} edited by user {}", poll_id, user_unique_id);
+                let updated_poll = collection.find_one(doc! { "_id": poll_id }).await?;
+                if let Some(poll) = updated_poll {
+                    Ok(Json(PollResponse {
+                        id: poll_id.to_hex(),
+                        title: poll.title,
+                        options: poll.options,
+                        is_closed: poll.is_closed,
+                    }))
+                } else {
+                    error!("Poll {} not found after edit", poll_id);
+                    Err(WebauthnError::Unknown)
+                }
+            }
+            Ok(_) => {
+                error!("Poll {} not found or user {} not authorized", poll_id, user_unique_id);
+                Err(WebauthnError::Unknown)
+            }
+            Err(e) => {
+                error!("Failed to edit poll {}: {:?}", poll_id, e);
+                Err(WebauthnError::MongoDBError(e))
+            }
+        }
 }

@@ -6,6 +6,8 @@ import { useParams } from 'next/navigation';
 import PollCard from '@/components/polls/PollCard';
 import { getPoll, voteOnPoll } from '@/lib/api';
 import { Poll, useAppStore } from '@/lib/store';
+import Navbar from '@/components/Navbar';
+import { useRouter } from 'next/navigation';
 
 const PollPage = () => {
   const { pollId } = useParams();
@@ -14,6 +16,22 @@ const PollPage = () => {
   const [hasVoted, setHasVoted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const unsubscribe = useAppStore.subscribe(() => {
+      setIsHydrating(false);
+    });
+    setTimeout(() => setIsHydrating(false), 100);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrating && !useAppStore.getState().user) {
+      router.push('/login');
+    }
+  }, [router, isHydrating]);
 
   useEffect(() => {
     const fetchPoll = async () => {
@@ -52,14 +70,18 @@ const PollPage = () => {
     }
   };
 
+  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
   if (loading) return <div className="text-center p-4">Loading...</div>;
   if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
   if (!poll) return <div className="text-center p-4">Poll not found.</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{poll.title}</h1>
-      <PollCard poll={poll} hasVoted={hasVoted} onVote={handleVote} />
+    <div className="min-h-screen bg-gray-100">
+      <Navbar />
+      <div className="max-w-2xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">{poll.title}</h1>
+        <PollCard poll={poll} hasVoted={hasVoted} onVote={handleVote} />
+      </div>
     </div>
   );
 };

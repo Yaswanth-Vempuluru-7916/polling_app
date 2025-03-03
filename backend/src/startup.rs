@@ -49,7 +49,7 @@ impl AppState {
         let webauthn = Arc::new(builder.build().expect("Invalid configuration"));
 
         let mongo_uri = std::env::var("MONGODB_URI").expect("MONGODB_URI must be set in .env");
-        info!("Connecting to MongoDB at URI: {}", mongo_uri);
+        info!("Connecting to MongoDB ....");
         let client = Client::with_uri_str(&mongo_uri)
             .await
             .expect("Failed to connect to MongoDB");
