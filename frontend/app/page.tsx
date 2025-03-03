@@ -1,4 +1,3 @@
-// app/page.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -8,25 +7,27 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-b from-black via-gray-900 to-black text-gray-100">
       <Navbar />
       <div className="max-w-4xl mx-auto p-6 text-center">
-        <h1 className="text-4xl font-bold text-gray-800 mb-4">Welcome to the Polling App</h1>
-        <p className="text-lg text-gray-600 mb-6">
-          Create, vote on, and manage polls with ease. Log in or register to get started!
+        <h1 className="text-5xl font-rajdhani font-bold text-purple-500 mb-6 tracking-wider drop-shadow-lg">
+          LEVEL UP YOUR VOICE
+        </h1>
+        <p className="text-xl font-montserrat text-gray-300 mb-8 max-w-2xl mx-auto">
+          Create, vote on, and manage polls with the strength of an S-Rank hunter. Your opinion matters, make it count.
         </p>
-        <div className="space-x-4">
+        <div className="space-x-6 mt-12">
           <button
             onClick={() => router.push('/login')}
-            className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+            className="bg-purple-700 text-gray-100 py-3 px-8 rounded hover:bg-purple-600 transition-all duration-300 font-rajdhani font-bold text-lg tracking-wide border-b-4 border-purple-900 hover:translate-y-1 hover:border-b-2"
           >
-            Login
+            LOGIN
           </button>
           <button
             onClick={() => router.push('/register')}
-            className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600"
+            className="bg-indigo-700 text-gray-100 py-3 px-8 rounded hover:bg-indigo-600 transition-all duration-300 font-rajdhani font-bold text-lg tracking-wide border-b-4 border-indigo-900 hover:translate-y-1 hover:border-b-2"
           >
-            Register
+            REGISTER
           </button>
         </div>
       </div>

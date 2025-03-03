@@ -55,10 +55,17 @@ const AllPollsPage = () => {
           prevPolls.map((p) => (p.id === updatedPoll.id ? updatedPoll : p))
         );
       };
-      ws.onerror = (err) => console.error('WebSocket error:', err);
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        console.log('WebSocket state:', ws.readyState);
+      };
+      ws.onclose = (event) => {
+        console.log('WebSocket closed:', event.code, event.reason);
+      };
       return () => ws.close();
     }
-  }, [polls, isHydrating]);
+  }, [isHydrating, polls.length]);
+  
 
   const handleVote = async (pollId: string, optionId: number) => {
     if (votedPolls.includes(pollId)) return;
