@@ -35,20 +35,27 @@ const AllPollsPage = () => {
 
     ws.onopen = () => {
       console.log('Connected to WebSocket for all polls');
-      polls.forEach(poll => joinPoll(poll.id));
     };
 
     ws.onmessage = (event) => {
       try {
-        const updatedPoll: Poll = JSON.parse(event.data);
-        console.log('Received update for poll:', updatedPoll.id, 'Title:', updatedPoll.title);
+        const data = JSON.parse(event.data);
+        const updatedPoll: Poll = {
+          ...data,
+          id: data._id?.$oid || data.id || '', // Ensure id is a string
+          _id: data._id || undefined,
+        };
+        if (!updatedPoll.id) {
+          console.error('Received poll with no valid ID:', updatedPoll);
+          return;
+        }
+        console.log('Received WebSocket update for poll:', updatedPoll.id);
         setPolls((prevPolls) => {
           const pollExists = prevPolls.some(p => p.id === updatedPoll.id);
           if (pollExists) {
             return prevPolls.map(p => (p.id === updatedPoll.id ? updatedPoll : p));
           } else {
             joinPoll(updatedPoll.id);
-            console.log('Added new poll:', updatedPoll.id);
             return [...prevPolls, updatedPoll];
           }
         });
@@ -86,7 +93,9 @@ const AllPollsPage = () => {
 
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
-          allPolls.forEach(poll => joinPoll(poll.id));
+          allPolls.forEach(poll => {
+            joinPoll(poll.id); // poll.id is now guaranteed string
+          });
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load polls.');
@@ -100,7 +109,7 @@ const AllPollsPage = () => {
 
   const joinPoll = (pollId: string) => {
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN && !joinedPollsRef.current.has(pollId)) {
+    if (ws && ws.readyState === WebSocket.OPEN && pollId && !joinedPollsRef.current.has(pollId)) {
       ws.send(`join_poll:${pollId}`);
       joinedPollsRef.current.add(pollId);
       console.log('Joined poll:', pollId);
@@ -108,7 +117,10 @@ const AllPollsPage = () => {
   };
 
   const handleVote = async (pollId: string, optionId: number) => {
-    if (votedPolls.includes(pollId)) return;
+    if (!pollId || votedPolls.includes(pollId)) {
+      console.error('Invalid poll ID or already voted:', pollId);
+      return;
+    }
 
     try {
       await voteOnPoll(pollId, optionId);
@@ -128,6 +140,7 @@ const AllPollsPage = () => {
       sessionStorage.setItem('votedPolls', JSON.stringify(newVotedPolls));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit vote.');
+      console.error('Vote error:', err);
     }
   };
 
@@ -165,7 +178,7 @@ const AllPollsPage = () => {
             <div className="mt-4 text-gray-500 text-sm">Check back later or create your own poll</div>
           </div>
         ) : (
-          // Note: Warning points here, but keys are correct in PollCard; likely a React false positive
+          // Warning points here, but keys are correct; React dev-mode false positive
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
             {polls.map((poll) => (
               <PollCard

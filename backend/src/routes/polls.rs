@@ -170,6 +170,8 @@ pub async fn vote_on_poll(
             if let Ok(Some(updated_poll)) = collection.find_one(doc! { "_id": poll_id }).await {
                 let _ = broadcast_tx.send(updated_poll.clone());
                 info!("Broadcasted updated poll: {}", poll_id);
+            } else {
+                error!("Failed to fetch updated poll {} after vote", poll_id);
             }
             Ok(StatusCode::OK)
         }
@@ -326,7 +328,6 @@ pub async fn delete_poll(
     match delete_result {
         Ok(result) if result.deleted_count > 0 => {
             info!("Poll {} deleted by user {}", poll_id, user_unique_id);
-            // No broadcast for delete; clients will refetch or handle locally
             Ok(StatusCode::OK)
         }
         Ok(_) => {

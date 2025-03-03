@@ -19,11 +19,23 @@ interface EditPollData {
   options: string[];
 }
 
+// Helper to normalize Poll data
+const normalizePoll = (poll: any): Poll => {
+  const id = poll._id?.$oid || poll.id;
+  if (!id) throw new Error('Poll missing valid ID');
+  return {
+    ...poll,
+    id,
+    _id: poll._id || undefined,
+  };
+};
+
 export const createPoll = async (pollData: CreatePollData): Promise<Poll> => {
   try {
     const response: AxiosResponse<Poll> = await api.post('/api/polls', pollData);
-    useAppStore.getState().updatePoll(response.data);
-    return response.data;
+    const normalizedPoll = normalizePoll(response.data);
+    useAppStore.getState().updatePoll(normalizedPoll);
+    return normalizedPoll;
   } catch (error) {
     throw handleError(error, 'Failed to create poll');
   }
@@ -32,8 +44,9 @@ export const createPoll = async (pollData: CreatePollData): Promise<Poll> => {
 export const getPoll = async (pollId: string): Promise<Poll> => {
   try {
     const response: AxiosResponse<Poll> = await api.get(`/api/polls/${pollId}`);
-    useAppStore.getState().updatePoll(response.data);
-    return response.data;
+    const normalizedPoll = normalizePoll(response.data);
+    useAppStore.getState().updatePoll(normalizedPoll);
+    return normalizedPoll;
   } catch (error) {
     throw handleError(error, 'Failed to fetch poll');
   }
@@ -50,8 +63,9 @@ export const voteOnPoll = async (pollId: string, optionId: number): Promise<void
 export const fetchUserPolls = async (): Promise<Poll[]> => {
   try {
     const response: AxiosResponse<Poll[]> = await api.get('/api/polls/manage');
-    useAppStore.getState().setPolls(response.data);
-    return response.data;
+    const normalizedPolls = response.data.map(normalizePoll);
+    useAppStore.getState().setPolls(normalizedPolls);
+    return normalizedPolls;
   } catch (error) {
     throw handleError(error, 'Failed to fetch your polls');
   }
@@ -98,8 +112,9 @@ export const deletePoll = async (pollId: string): Promise<void> => {
 export const editPoll = async (pollId: string, pollData: EditPollData): Promise<Poll> => {
   try {
     const response: AxiosResponse<Poll> = await api.post(`/api/polls/${pollId}/edit`, pollData);
-    useAppStore.getState().updatePoll(response.data);
-    return response.data;
+    const normalizedPoll = normalizePoll(response.data);
+    useAppStore.getState().updatePoll(normalizedPoll);
+    return normalizedPoll;
   } catch (error) {
     throw handleError(error, 'Failed to edit poll');
   }
@@ -117,7 +132,7 @@ export const logout = async (): Promise<void> => {
 export const fetchAllPolls = async (): Promise<Poll[]> => {
   try {
     const response: AxiosResponse<Poll[]> = await api.get('/api/polls/all');
-    return response.data;
+    return response.data.map(normalizePoll);
   } catch (error) {
     throw handleError(error, 'Failed to fetch all polls');
   }

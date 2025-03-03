@@ -9,10 +9,13 @@ export interface PollOption {
 }
 
 export interface Poll {
-  id: string;
+  id: string; // Keep required, derived from _id.$oid
+  _id?: { $oid: string }; // Optional backend format
   title: string;
   options: PollOption[];
   isClosed: boolean;
+  creator_id?: any; // Refine if needed
+  created_at?: any; // Refine if needed
 }
 
 interface User {
@@ -45,7 +48,7 @@ export const useAppStore = create<AppState>()(
       clearState: () => set({ user: null, polls: [] }),
     }),
     {
-      name: 'polling-app-store', // Key for localStorage
+      name: 'polling-app-store',
       storage: {
         getItem: (name) => {
           const value = localStorage.getItem(name);
