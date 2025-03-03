@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { fetchUserPolls, closePoll, resetPoll } from '@/lib/api';
+import { fetchUserPolls, closePoll, resetPoll, logout } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -12,10 +12,18 @@ const PollManagePage = () => {
   const { user, polls, setPolls, setUser } = useAppStore();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isHydrating, setIsHydrating] = useState(true);
 
-  // Rehydrate user if not set
   useEffect(() => {
-    if (!user) {
+    const unsubscribe = useAppStore.subscribe(() => {
+      setIsHydrating(false);
+    });
+    setTimeout(() => setIsHydrating(false), 100);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrating && !user) {
       const fetchUser = async () => {
         try {
           const response = await axios.get('http://localhost:8080/api/user', { withCredentials: true });
@@ -26,10 +34,10 @@ const PollManagePage = () => {
       };
       fetchUser();
     }
-  }, [user, router, setUser]);
+  }, [user, router, setUser, isHydrating]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isHydrating && !user) return;
     const loadPolls = async () => {
       try {
         const userPolls = await fetchUserPolls();
@@ -41,7 +49,7 @@ const PollManagePage = () => {
       }
     };
     loadPolls();
-  }, [user, router, setPolls]);
+  }, [user, router, setPolls, isHydrating]);
 
   const handleClosePoll = async (pollId: string) => {
     try {
@@ -59,13 +67,31 @@ const PollManagePage = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to logout.');
+    }
+  };
+
+  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
   if (!user) return null;
   if (loading) return <div className="text-center p-4">Loading...</div>;
   if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Manage Your Polls</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Manage Your Polls</h1>
+        <button
+          onClick={handleLogout}
+          className="bg-gray-500 text-white py-1 px-3 rounded hover:bg-gray-600"
+        >
+          Logout
+        </button>
+      </div>
       {polls.length === 0 ? (
         <p className="text-gray-500">You haven’t created any polls yet.</p>
       ) : (

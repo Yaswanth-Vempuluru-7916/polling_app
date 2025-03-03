@@ -87,4 +87,13 @@ function handleError(error: unknown, defaultMessage: string): Error {
   return new Error('An unexpected error occurred');
 }
 
+export const logout = async (): Promise<void> => {
+  try {
+    await api.get('/api/logout');
+    useAppStore.getState().clearState(); // Clear Zustand store
+  } catch (error) {
+    throw handleError(error, 'Failed to logout');
+  }
+};
+
 export default api;

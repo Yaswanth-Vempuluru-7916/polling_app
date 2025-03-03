@@ -292,3 +292,11 @@ pub async fn get_current_user(
     };
     Ok(Json(response))
 }
+
+pub async fn logout(
+    session: Session,
+) -> Result<impl IntoResponse, WebauthnError> {
+    session.clear().await; // No Result to handle, just call it
+    info!("Session cleared successfully during logout");
+    Ok(StatusCode::OK)
+}

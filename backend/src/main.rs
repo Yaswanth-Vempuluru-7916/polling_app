@@ -1,5 +1,5 @@
 // src/main.rs
-use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::{get, post}, Router};
+use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::{post, get}, Router};
 use std::net::SocketAddr;
 #[cfg(feature = "wasm")]
 use std::path::PathBuf;
@@ -43,12 +43,13 @@ async fn main() {
         .allow_origin("http://localhost:3000".parse::<axum::http::HeaderValue>().unwrap())
         .allow_credentials(true);
 
-        let app = Router::new()
+    let app = Router::new()
         .route("/register_start/:username", post(start_register))
         .route("/register_finish", post(finish_register))
         .route("/login_start/:username", post(start_authentication))
         .route("/login_finish", post(finish_authentication))
-        .route("/api/user", get(get_current_user)) // Added for frontend user fetch
+        .route("/api/user", get(get_current_user))
+        .route("/api/logout", get(crate::auth::logout))
         .merge(polls::router(app_state.broadcast_tx.clone()))
         .route("/ws", axum::routing::get(crate::websocket::websocket_handler))
         .layer(Extension(app_state))

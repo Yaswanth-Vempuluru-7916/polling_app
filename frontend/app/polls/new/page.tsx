@@ -17,14 +17,25 @@ const NewPollPage = () => {
   ]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true); // New state to track rehydration
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
+    // Wait for Zustand to rehydrate from localStorage
+    const unsubscribe = useAppStore.subscribe(() => {
+      setIsHydrating(false); // Rehydration complete when state updates
+    });
+    setTimeout(() => setIsHydrating(false), 100); // Fallback in case subscribe doesn’t fire
+    return () => unsubscribe(); // Cleanup subscription
+  }, []);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!isHydrating && !user) {
+      router.push('/login'); // Only redirect after rehydration if user is still null
+    }
+  }, [user, router, isHydrating]);
+
+  if (isHydrating) return <div className="text-center p-4">Loading...</div>; // Wait for rehydration
+  if (!user) return null; // Redirect happens here if no user after rehydration
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,5 +1,6 @@
 // lib/store.ts
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface PollOption {
   id: number;
@@ -28,16 +29,31 @@ interface AppState {
   clearState: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  user: null,
-  polls: [],
-  setUser: (user) => set({ user }),
-  setPolls: (polls) => set({ polls }),
-  updatePoll: (updatedPoll) =>
-    set((state) => ({
-      polls: state.polls.map((poll) =>
-        poll.id === updatedPoll.id ? updatedPoll : poll
-      ),
-    })),
-  clearState: () => set({ user: null, polls: [] }),
-}));
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      user: null,
+      polls: [],
+      setUser: (user) => set({ user }),
+      setPolls: (polls) => set({ polls }),
+      updatePoll: (updatedPoll) =>
+        set((state) => ({
+          polls: state.polls.map((poll) =>
+            poll.id === updatedPoll.id ? updatedPoll : poll
+          ),
+        })),
+      clearState: () => set({ user: null, polls: [] }),
+    }),
+    {
+      name: 'polling-app-store', // Key for localStorage
+      storage: {
+        getItem: (name) => {
+          const value = localStorage.getItem(name);
+          return value ? JSON.parse(value) : null;
+        },
+        setItem: (name, value) => localStorage.setItem(name, JSON.stringify(value)),
+        removeItem: (name) => localStorage.removeItem(name),
+      },
+    }
+  )
+);
