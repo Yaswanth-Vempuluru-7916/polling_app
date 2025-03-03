@@ -23,7 +23,7 @@ const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
   const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
   
   return (
-    <div className="bg-gray-900 border border-gray-700 hover:border-cyan-400 rounded-xl p-5 shadow-lg hover:shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
+    <div className="bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]  border border-gray-700 hover:border-cyan-400 rounded-xl p-5 shadow-lg hover:shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
       {/* Poll Status Badge */}
       {poll.isClosed && (
         <div className="absolute top-2 right-2 bg-red-500/80 text-white text-xs font-bold px-3 py-1 rounded-lg shadow-md">

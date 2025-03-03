@@ -73,9 +73,9 @@ const NewPollPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-gray-200">
       <Navbar />
-      <div className="max-w-2xl mx-auto p-6 mt-8 bg-[#181818] rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.8)] border border-gray-700">
+      <div className="max-w-2xl mx-auto p-6 mt-8 bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.8)] border border-gray-700">
         <h1 className="text-2xl font-semibold text-gray-100 mb-6 text-center tracking-wide">
           🗳️ Create a New Poll
         </h1>
@@ -89,7 +89,7 @@ const NewPollPage = () => {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Enter poll title..."
-            className="w-full p-3 bg-[#252525] text-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full p-3 bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -106,7 +106,7 @@ const NewPollPage = () => {
                   setOptions(newOptions);
                 }}
                 placeholder={`Option ${index + 1}`}
-                className="w-full p-3 bg-[#252525] text-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {options.length > 2 && (
                 <button

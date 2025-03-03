@@ -125,15 +125,15 @@ const PollManagePage = () => {
     }
   };
 
-  if (isHydrating) return <div className="flex items-center justify-center h-screen bg-gray-900"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
+  if (isHydrating) return <div className="flex items-center justify-center h-screenbg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
   if (!user) return null;
-  if (loading) return <div className="flex items-center justify-center h-screen bg-gray-900"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
-  if (error) return <div className="flex items-center justify-center h-screen bg-gray-900"><div className="p-6 bg-red-900 border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/30 text-white text-center">{error}</div></div>;
+  if (loading) return <div className="flex items-center justify-center h-screenbg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
+  if (error) return <div className="flex items-center justify-center h-screenbg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="p-6 bg-red-900 border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/30 text-white text-center">{error}</div></div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-white">
       <Navbar />
-      <div className="max-w-4xl mx-auto p-8 mt-8 bg-gray-800 bg-opacity-40 backdrop-blur-lg rounded-2xl shadow-2xl border border-gray-700 border-opacity-50">
+      <div className="max-w-4xl mx-auto p-8 mt-8 bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] bg-opacity-40 backdrop-blur-lg rounded-2xl shadow-2xl border border-gray-700 border-opacity-50">
         <div className="flex items-center mb-8">
           <div className="w-2 h-8 bg-blue-500 rounded-full mr-3 shadow-lg shadow-blue-500/50"></div>
           <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">Manage Your Polls</h1>
@@ -150,7 +150,7 @@ const PollManagePage = () => {
             {polls.map((poll) => (
               <div
                 key={poll.id}
-                className="relative border border-gray-700 p-6 rounded-xl bg-gray-800 bg-opacity-40 backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:translate-y-[-5px] group"
+                className="relative border border-gray-700 p-6 rounded-xl bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] bg-opacity-40 backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:translate-y-[-5px] group"
               >
                 {!poll.isClosed ? (
                   <div className="absolute -top-2 -right-2 px-3 py-1 bg-green-500 bg-opacity-30 backdrop-blur-sm border border-green-500 text-xs font-bold uppercase rounded-full shadow-lg shadow-green-500/20">Active</div>

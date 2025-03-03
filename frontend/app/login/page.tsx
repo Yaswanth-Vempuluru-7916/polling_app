@@ -30,7 +30,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d14] text-gray-100 flex flex-col items-center">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-gray-100 flex flex-col items-center">
       <div className="w-full">
     <Navbar />
   </div>
