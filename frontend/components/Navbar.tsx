@@ -29,6 +29,12 @@ const Navbar = () => {
           >
             Home
           </button>
+          <button
+            onClick={() => router.push('/polls/all')}
+            className="hover:text-gray-300 focus:outline-none"
+          >
+            All Polls
+          </button>
           {user && (
             <>
               <button

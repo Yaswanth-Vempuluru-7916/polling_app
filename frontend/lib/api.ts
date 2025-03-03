@@ -114,6 +114,15 @@ export const logout = async (): Promise<void> => {
   }
 };
 
+export const fetchAllPolls = async (): Promise<Poll[]> => {
+  try {
+    const response: AxiosResponse<Poll[]> = await api.get('/api/polls/all');
+    return response.data;
+  } catch (error) {
+    throw handleError(error, 'Failed to fetch all polls');
+  }
+};
+
 function handleError(error: unknown, defaultMessage: string): Error {
   if (axios.isAxiosError(error)) {
     const message = error.response?.data || defaultMessage;

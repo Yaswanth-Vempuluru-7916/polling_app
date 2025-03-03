@@ -54,6 +54,7 @@ pub fn router(broadcast_tx: Arc<tokio::sync::broadcast::Sender<Poll>>) -> Router
         .route("/api/polls/:poll_id/reset", post(reset_poll))
         .route("/api/polls/:poll_id/delete", post(delete_poll)) // New endpoint
         .route("/api/polls/:poll_id/edit", post(edit_poll)) // New endpoint
+        .route("/api/polls/all", get(get_all_polls)) // New endpoint
 }
 
 pub async fn create_poll(
@@ -422,4 +423,30 @@ pub async fn edit_poll(
                 Err(WebauthnError::MongoDBError(e))
             }
         }
+}
+
+pub async fn get_all_polls(
+    Extension(app_state): Extension<AppState>,
+) -> Result<impl IntoResponse, WebauthnError> {
+    info!("Fetching all polls");
+    let collection = app_state.db.collection::<Poll>("polls");
+    let cursor = collection
+        .find(doc! {})
+        .await
+        .map_err(|e| WebauthnError::MongoDBError(e))?;
+
+    let polls: Vec<Poll> = cursor
+        .try_collect()
+        .await
+        .map_err(|e| WebauthnError::MongoDBError(e))?;
+    info!("Found {} polls total", polls.len());
+
+    let response: Vec<PollResponse> = polls.into_iter().map(|poll| PollResponse {
+        id: poll.id.unwrap().to_hex(),
+        title: poll.title,
+        options: poll.options,
+        is_closed: poll.is_closed,
+    }).collect();
+
+    Ok(Json(response))
 }
