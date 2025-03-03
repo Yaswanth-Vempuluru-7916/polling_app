@@ -1,4 +1,3 @@
-// app/polls/[pollId]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -70,16 +69,17 @@ const PollPage = () => {
     }
   };
 
-  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
-  if (loading) return <div className="text-center p-4">Loading...</div>;
-  if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
-  if (!poll) return <div className="text-center p-4">Poll not found.</div>;
+  if (isHydrating || loading) return <div className="text-center p-4 text-gray-300">Loading...</div>;
+  if (error) return <div className="text-center p-4 text-red-400">{error}</div>;
+  if (!poll) return <div className="text-center p-4 text-gray-300">Poll not found.</div>;
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] overflow-hidden relative">
       <Navbar />
-      <div className="max-w-2xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">{poll.title}</h1>
+      <div className="max-w-2xl mx-auto p-6 mt-8 bg-[#1e1e2e] shadow-lg rounded-lg text-gray-100 border border-gray-800">
+        <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent drop-shadow-lg">
+          {poll.title}
+        </h1>
         <PollCard poll={poll} hasVoted={hasVoted} onVote={handleVote} />
       </div>
     </div>

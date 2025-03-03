@@ -7,6 +7,7 @@ import { Poll, useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Navbar from '@/components/Navbar';
+import { TrashIcon, PencilSquareIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 const PollManagePage = () => {
   const router = useRouter();
@@ -124,50 +125,76 @@ const PollManagePage = () => {
     }
   };
 
-  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
+  if (isHydrating) return <div className="flex items-center justify-center h-screen bg-gray-900"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
   if (!user) return null;
-  if (loading) return <div className="text-center p-4">Loading...</div>;
-  if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
+  if (loading) return <div className="flex items-center justify-center h-screen bg-gray-900"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
+  if (error) return <div className="flex items-center justify-center h-screen bg-gray-900"><div className="p-6 bg-red-900 border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/30 text-white text-center">{error}</div></div>;
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white">
       <Navbar />
-      <div className="max-w-2xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Manage Your Polls</h1>
+      <div className="max-w-4xl mx-auto p-8 mt-8 bg-gray-800 bg-opacity-40 backdrop-blur-lg rounded-2xl shadow-2xl border border-gray-700 border-opacity-50">
+        <div className="flex items-center mb-8">
+          <div className="w-2 h-8 bg-blue-500 rounded-full mr-3 shadow-lg shadow-blue-500/50"></div>
+          <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">Manage Your Polls</h1>
+        </div>
         {polls.length === 0 ? (
-          <p className="text-gray-500">You haven’t created any polls yet.</p>
+          <div className="flex flex-col items-center justify-center p-16 border border-dashed border-gray-700 rounded-xl">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p className="text-gray-400 text-xl font-light">You haven't created any polls yet.</p>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-6">
             {polls.map((poll) => (
-              <div key={poll.id} className="border p-3 rounded-md">
-                <h2 className="text-lg font-semibold text-gray-800">{poll.title}</h2>
-                <p className="text-gray-600">Status: {poll.isClosed ? 'Closed' : 'Open'}</p>
-                <div className="mt-2 space-x-2">
+              <div
+                key={poll.id}
+                className="relative border border-gray-700 p-6 rounded-xl bg-gray-800 bg-opacity-40 backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/20 hover:translate-y-[-5px] group"
+              >
+                {!poll.isClosed ? (
+                  <div className="absolute -top-2 -right-2 px-3 py-1 bg-green-500 bg-opacity-30 backdrop-blur-sm border border-green-500 text-xs font-bold uppercase rounded-full shadow-lg shadow-green-500/20">Active</div>
+                ) : (
+                  <div className="absolute -top-2 -right-2 px-3 py-1 bg-red-500 bg-opacity-30 backdrop-blur-sm border border-red-500 text-xs font-bold uppercase rounded-full shadow-lg shadow-red-500/20">Closed</div>
+                )}
+                
+                <h2 className="text-xl font-bold mb-2 group-hover:text-blue-400 transition-colors duration-300">{poll.title}</h2>
+                <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-gray-600 to-transparent mb-4"></div>
+                
+                <div className="mt-6 flex justify-end space-x-3">
                   {!poll.isClosed && (
                     <button
                       onClick={() => handleClosePoll(poll.id)}
-                      className="bg-red-500 text-white py-1 px-3 rounded hover:bg-red-600"
+                      className="p-3 rounded-lg bg-transparent border border-red-500 shadow-lg transition-all duration-300 hover:shadow-red-500/50 hover:scale-110 relative overflow-hidden group/btn"
                     >
-                      Close Poll
+                      <span className="absolute inset-0 bg-red-500 opacity-20 group-hover/btn:opacity-30 transition-opacity duration-300"></span>
+                      <span className="absolute inset-0 bg-red-500 opacity-0 group-hover/btn:opacity-10 group-hover/btn:blur-md transition-all duration-300"></span>
+                      <XCircleIcon className="h-6 w-6 text-red-500 group-hover/btn:text-white relative z-10 transition-colors duration-300" />
                     </button>
                   )}
                   <button
                     onClick={() => handleResetPoll(poll.id)}
-                    className="bg-yellow-500 text-white py-1 px-3 rounded hover:bg-yellow-600"
+                    className="p-3 rounded-lg bg-transparent border border-yellow-500 shadow-lg transition-all duration-300 hover:shadow-yellow-500/50 hover:scale-110 relative overflow-hidden group/btn"
                   >
-                    Reset Votes
+                    <span className="absolute inset-0 bg-yellow-500 opacity-20 group-hover/btn:opacity-30 transition-opacity duration-300"></span>
+                    <span className="absolute inset-0 bg-yellow-500 opacity-0 group-hover/btn:opacity-10 group-hover/btn:blur-md transition-all duration-300"></span>
+                    <ArrowPathIcon className="h-6 w-6 text-yellow-500 group-hover/btn:text-white relative z-10 transition-colors duration-300" />
                   </button>
                   <button
                     onClick={() => handleDeletePoll(poll.id)}
-                    className="bg-red-700 text-white py-1 px-3 rounded hover:bg-red-800"
+                    className="p-3 rounded-lg bg-transparent border border-red-700 shadow-lg transition-all duration-300 hover:shadow-red-700/50 hover:scale-110 relative overflow-hidden group/btn"
                   >
-                    Delete
+                    <span className="absolute inset-0 bg-red-700 opacity-20 group-hover/btn:opacity-30 transition-opacity duration-300"></span>
+                    <span className="absolute inset-0 bg-red-700 opacity-0 group-hover/btn:opacity-10 group-hover/btn:blur-md transition-all duration-300"></span>
+                    <TrashIcon className="h-6 w-6 text-red-700 group-hover/btn:text-white relative z-10 transition-colors duration-300" />
                   </button>
                   <button
                     onClick={() => handleEditPoll(poll)}
-                    className="bg-blue-500 text-white py-1 px-3 rounded hover:bg-blue-600"
+                    className="p-3 rounded-lg bg-transparent border border-blue-500 shadow-lg transition-all duration-300 hover:shadow-blue-500/50 hover:scale-110 relative overflow-hidden group/btn"
                   >
-                    Edit
+                    <span className="absolute inset-0 bg-blue-500 opacity-20 group-hover/btn:opacity-30 transition-opacity duration-300"></span>
+                    <span className="absolute inset-0 bg-blue-500 opacity-0 group-hover/btn:opacity-10 group-hover/btn:blur-md transition-all duration-300"></span>
+                    <PencilSquareIcon className="h-6 w-6 text-blue-500 group-hover/btn:text-white relative z-10 transition-colors duration-300" />
                   </button>
                 </div>
               </div>
@@ -178,53 +205,69 @@ const PollManagePage = () => {
 
       {/* Edit Modal */}
       {editingPoll && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Edit Poll</h2>
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              placeholder="Poll Title"
-              className="w-full p-2 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {editOptions.map((option) => (
-              <div key={option.id} className="flex items-center space-x-2 mb-2">
-                <input
-                  type="text"
-                  value={option.text}
-                  onChange={(e) => handleOptionChange(option.id, e.target.value)}
-                  placeholder={`Option ${option.id}`}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {editOptions.length > 2 && (
-                  <button
-                    onClick={() => removeOption(option.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              onClick={addOption}
-              className="text-blue-500 hover:text-blue-700 mb-4"
-            >
-              + Add Option
-            </button>
-            <div className="flex justify-end space-x-2">
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn">
+          <div onClick={e => e.stopPropagation()} className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700 transform transition-all duration-300 animate-scaleIn">
+            <div className="flex items-center mb-6">
+              <div className="w-1 h-6 bg-blue-500 rounded-full mr-3 shadow-lg shadow-blue-500/50"></div>
+              <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">Edit Poll</h2>
+            </div>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-400 mb-2">Poll Title</label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full p-3 border border-gray-600 bg-gray-800 bg-opacity-60 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-inner"
+              />
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <label className="block text-sm font-medium text-gray-400 mb-2">Poll Options</label>
+              {editOptions.map((option) => (
+                <div key={option.id} className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={option.text}
+                    onChange={(e) => handleOptionChange(option.id, e.target.value)}
+                    className="w-full p-3 border border-gray-600 bg-gray-800 bg-opacity-60 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 shadow-inner"
+                  />
+                  {editOptions.length > 2 && (
+                    <button
+                      onClick={() => removeOption(option.id)}
+                      className="p-3 rounded-lg bg-transparent border border-red-500 shadow-lg transition-all duration-300 hover:shadow-red-500/50 hover:scale-110 relative overflow-hidden group/btn"
+                    >
+                      <span className="absolute inset-0 bg-red-500 opacity-20 group-hover/btn:opacity-30 transition-opacity duration-300"></span>
+                      <span className="absolute inset-0 bg-red-500 opacity-0 group-hover/btn:opacity-10 group-hover/btn:blur-md transition-all duration-300"></span>
+                      <TrashIcon className="h-6 w-6 text-red-500 group-hover/btn:text-white relative z-10 transition-colors duration-300" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={addOption}
+                className="text-blue-500 hover:text-blue-700 mb-4"
+              >
+                + Add Option
+              </button>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-8">
               <button
                 onClick={() => setEditingPoll(null)}
-                className="bg-gray-300 text-gray-800 py-1 px-3 rounded hover:bg-gray-400"
+                className="px-6 py-3 rounded-lg bg-transparent border border-gray-500 text-white shadow-lg transition-all duration-300 hover:shadow-gray-500/30 hover:scale-105 relative overflow-hidden group"
               >
-                Cancel
+                <span className="absolute inset-0 bg-gray-500 opacity-20 group-hover:opacity-30 transition-opacity duration-300"></span>
+                <span className="absolute inset-0 bg-gray-500 opacity-0 group-hover:opacity-10 group-hover:blur-md transition-all duration-300"></span>
+                <span className="relative z-10">Cancel</span>
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="bg-green-500 text-white py-1 px-3 rounded hover:bg-green-600"
+                className="px-6 py-3 rounded-lg bg-transparent border border-green-500 text-white shadow-lg transition-all duration-300 hover:shadow-green-500/30 hover:scale-105 relative overflow-hidden group"
               >
-                Save
+                <span className="absolute inset-0 bg-green-500 opacity-20 group-hover:opacity-30 transition-opacity duration-300"></span>
+                <span className="absolute inset-0 bg-green-500 opacity-0 group-hover:opacity-10 group-hover:blur-md transition-all duration-300"></span>
+                <span className="relative z-10">Save Changes</span>
               </button>
             </div>
           </div>

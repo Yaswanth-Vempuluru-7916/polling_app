@@ -1,4 +1,3 @@
-// app/polls/all/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -57,7 +56,6 @@ const AllPollsPage = () => {
       };
       ws.onerror = (err) => {
         console.error('WebSocket error:', err);
-        console.log('WebSocket state:', ws.readyState);
       };
       ws.onclose = (event) => {
         console.log('WebSocket closed:', event.code, event.reason);
@@ -65,7 +63,6 @@ const AllPollsPage = () => {
       return () => ws.close();
     }
   }, [isHydrating, polls.length]);
-  
 
   const handleVote = async (pollId: string, optionId: number) => {
     if (votedPolls.includes(pollId)) return;
@@ -91,28 +88,49 @@ const AllPollsPage = () => {
     }
   };
 
-  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
-  if (loading) return <div className="text-center p-4">Loading...</div>;
-  if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
+  if (isHydrating || loading) return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]">
+      <div className="p-4 rounded-lg bg-gray-800/50 shadow-xl backdrop-blur-sm">
+        <div className="animate-pulse flex space-x-2">
+          <div className="h-3 w-3 bg-cyan-400 rounded-full"></div>
+          <div className="h-3 w-3 bg-cyan-400 rounded-full"></div>
+          <div className="h-3 w-3 bg-cyan-400 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]">
+      <div className="p-6 rounded-lg bg-red-900/20 border border-red-500/30 shadow-xl backdrop-blur-sm text-red-300">
+        <span className="text-red-500 text-xl mr-2">⚠️</span>
+        {error}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] overflow-hidden">
       <Navbar />
-      <div className="max-w-4xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">All Polls</h1>
+      <div className="max-w-6xl mx-auto p-6 mt-12">
+        <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent text-center drop-shadow-lg">
+          All Polls
+        </h1>
+
         {polls.length === 0 ? (
-          <p className="text-gray-500">No polls available yet.</p>
+          <div className="flex flex-col items-center justify-center p-10 rounded-xl bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 shadow-lg">
+            <div className="text-gray-400 text-center text-lg">No polls available yet.</div>
+            <div className="mt-4 text-gray-500 text-sm">Check back later or create your own poll</div>
+          </div>
         ) : (
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
             {polls.map((poll) => (
-              <div key={poll.id} className="border p-4 rounded-md">
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">{poll.title}</h2>
-                <PollCard
-                  poll={poll}
-                  hasVoted={votedPolls.includes(poll.id) || poll.isClosed}
-                  onVote={(optionId) => handleVote(poll.id, optionId)}
-                />
-              </div>
+              <PollCard
+                key={poll.id}
+                poll={poll}
+                hasVoted={votedPolls.includes(poll.id) || poll.isClosed}
+                onVote={(optionId) => handleVote(poll.id, optionId)}
+              />
             ))}
           </div>
         )}

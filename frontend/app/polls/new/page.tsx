@@ -73,19 +73,76 @@ const NewPollPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-[#0D0D0D] text-gray-200">
       <Navbar />
-      <div className="max-w-2xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Create a New Poll</h1>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        <PollForm
-          title={title}
-          setTitle={setTitle}
-          options={options}
-          setOptions={setOptions}
-          onSubmit={handleSubmit}
-          loading={loading}
-        />
+      <div className="max-w-2xl mx-auto p-6 mt-8 bg-[#181818] rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.8)] border border-gray-700">
+        <h1 className="text-2xl font-semibold text-gray-100 mb-6 text-center tracking-wide">
+          🗳️ Create a New Poll
+        </h1>
+        
+        {error && <p className="text-red-400 mb-4 text-center">{error}</p>}
+
+        <div className="mb-6">
+          <label className="block text-gray-400 text-sm mb-2">Poll Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Enter poll title..."
+            className="w-full p-3 bg-[#252525] text-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-gray-400 text-sm mb-2">Options (At least 2 required)</label>
+          {options.map((option, index) => (
+            <div key={option.id} className="flex items-center gap-2 mb-3">
+              <input
+                type="text"
+                value={option.text}
+                onChange={(e) => {
+                  const newOptions = [...options];
+                  newOptions[index].text = e.target.value;
+                  setOptions(newOptions);
+                }}
+                placeholder={`Option ${index + 1}`}
+                className="w-full p-3 bg-[#252525] text-gray-200 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {options.length > 2 && (
+                <button
+                  onClick={() => setOptions(options.filter((opt) => opt.id !== option.id))}
+                  className="border border-red-500 text-red-400 p-2 rounded-md hover:bg-red-500 hover:text-white transition duration-200"
+                >
+                  ❌
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Buttons in the Same Row */}
+        <div className="flex justify-between items-center">
+          <button
+            onClick={() =>
+              setOptions([...options, { id: options.length + 1, text: '' }])
+            }
+            className="border border-green-500 text-green-400 py-2 px-4 rounded-md hover:bg-green-500 hover:text-white transition duration-200"
+          >
+            ➕ Add Option
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            className={`border ${
+              loading ? 'border-gray-500 text-gray-400' : 'border-blue-500 text-blue-400'
+            } py-2 px-4 rounded-md ${
+              !loading && 'hover:bg-blue-500 hover:text-white transition duration-200'
+            }`}
+            disabled={loading}
+          >
+            {loading ? '⏳ Creating...' : '🚀 Create Poll'}
+          </button>
+        </div>
       </div>
     </div>
   );

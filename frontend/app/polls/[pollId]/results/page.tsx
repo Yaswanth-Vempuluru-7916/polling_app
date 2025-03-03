@@ -1,8 +1,8 @@
 // app/polls/[pollId]/results/page.tsx
 'use client';
-import { useRouter } from 'next/navigation';
+
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getPoll } from '@/lib/api';
 import { useAppStore, Poll } from '@/lib/store';
 import Navbar from '@/components/Navbar';
@@ -42,45 +42,33 @@ const PollResultsPage = () => {
       }
     };
     fetchPoll();
+  }, [pollId]);
 
-    const ws = new WebSocket('ws://localhost:8080/ws');
-    ws.onopen = () => {
-      console.log('Connected to WebSocket');
-      ws.send(`join_poll:${pollId}`);
-    };
-    ws.onmessage = (event) => {
-      const updatedPoll: Poll = JSON.parse(event.data);
-      setPoll(updatedPoll);
-      updatePoll(updatedPoll);
-    };
-    ws.onerror = (err) => console.error('WebSocket error:', err);
-    return () => ws.close();
-  }, [pollId, updatePoll]);
-
-  if (isHydrating) return <div className="text-center p-4">Loading...</div>;
-  if (loading) return <div className="text-center p-4">Loading...</div>;
-  if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
+  if (isHydrating || loading) return <div className="text-center p-4">Loading...</div>;
+  if (error) return <div className="text-center p-4 text-red-500">{error}</div>;
   if (!poll) return <div className="text-center p-4">Poll not found.</div>;
 
   const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] overflow-hidden relative">
       <Navbar />
-      <div className="max-w-2xl mx-auto p-6 mt-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">{poll.title} - Live Results</h1>
+      <div className="max-w-2xl mx-auto p-6 mt-12 bg-[#1e1e2e] text-gray-200 rounded-lg shadow-lg border border-gray-700">
+        <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
+          {poll.title} - Live Results
+        </h1>
         <div className="space-y-4">
           {poll.options.map((option) => {
             const percentage = totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0;
             return (
-              <div key={option.id} className="border p-3 rounded-md">
+              <div key={option.id} className="p-3 rounded-md border border-gray-700">
                 <div className="flex justify-between mb-2">
                   <span>{option.text}</span>
                   <span>{option.votes} votes ({percentage.toFixed(1)}%)</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-4">
+                <div className="w-full bg-gray-800 rounded-full h-4">
                   <div
-                    className="bg-blue-500 h-4 rounded-full transition-all duration-500"
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
@@ -88,7 +76,7 @@ const PollResultsPage = () => {
             );
           })}
         </div>
-        <p className="mt-4 text-gray-600">Total Votes: {totalVotes}</p>
+        <p className="mt-4 text-gray-400">Total Votes: {totalVotes}</p>
         {poll.isClosed && <p className="text-gray-500 mt-2">This poll is closed.</p>}
       </div>
     </div>
