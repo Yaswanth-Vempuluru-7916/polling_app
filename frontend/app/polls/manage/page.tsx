@@ -3,64 +3,63 @@
 
 import { useState, useEffect } from 'react';
 import { fetchUserPolls, closePoll, resetPoll } from '@/lib/api';
-
-interface PollOption {
-  id: number;
-  text: string;
-  votes: number;
-}
-
-interface Poll {
-  id: string;
-  title: string;
-  options: PollOption[];
-  isClosed: boolean;
-}
+import { useAppStore } from '@/lib/store';
+import { useRouter } from 'next/navigation';
+import axios from 'axios';
 
 const PollManagePage = () => {
-  const [polls, setPolls] = useState<Poll[]>([]);
+  const router = useRouter();
+  const { user, polls, setPolls, setUser } = useAppStore();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Rehydrate user if not set
   useEffect(() => {
+    if (!user) {
+      const fetchUser = async () => {
+        try {
+          const response = await axios.get('http://localhost:8080/api/user', { withCredentials: true });
+          setUser({ username: response.data.username, id: response.data.id });
+        } catch (err) {
+          router.push('/login');
+        }
+      };
+      fetchUser();
+    }
+  }, [user, router, setUser]);
+
+  useEffect(() => {
+    if (!user) return;
     const loadPolls = async () => {
       try {
         const userPolls = await fetchUserPolls();
         setPolls(userPolls);
       } catch (err) {
-        setError('Failed to load your polls.');
-        console.error('Error fetching polls:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load your polls.');
       } finally {
         setLoading(false);
       }
     };
     loadPolls();
-  }, []);
+  }, [user, router, setPolls]);
 
   const handleClosePoll = async (pollId: string) => {
     try {
       await closePoll(pollId);
-      setPolls(polls.map(poll => 
-        poll.id === pollId ? { ...poll, isClosed: true } : poll
-      ));
     } catch (err) {
-      setError('Failed to close poll.');
-      console.error('Error closing poll:', err);
+      setError(err instanceof Error ? err.message : 'Failed to close poll.');
     }
   };
 
   const handleResetPoll = async (pollId: string) => {
     try {
       await resetPoll(pollId);
-      setPolls(polls.map(poll => 
-        poll.id === pollId ? { ...poll, options: poll.options.map(opt => ({ ...opt, votes: 0 })) } : poll
-      ));
     } catch (err) {
-      setError('Failed to reset poll.');
-      console.error('Error resetting poll:', err);
+      setError(err instanceof Error ? err.message : 'Failed to reset poll.');
     }
   };
 
+  if (!user) return null;
   if (loading) return <div className="text-center p-4">Loading...</div>;
   if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
 

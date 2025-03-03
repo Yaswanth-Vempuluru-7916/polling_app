@@ -1,5 +1,5 @@
 // src/main.rs
-use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::post, Router};
+use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::{get, post}, Router};
 use std::net::SocketAddr;
 #[cfg(feature = "wasm")]
 use std::path::PathBuf;
@@ -9,10 +9,9 @@ use tower_sessions::{
 };
 use tower_http::cors::CorsLayer;
 use http::{Method, header};
-use crate::auth::{finish_authentication, finish_register, start_authentication, start_register};
+use crate::auth::{finish_authentication, finish_register, start_authentication, start_register, get_current_user};
 use crate::startup::AppState;
 use crate::routes::polls;
-use crate::websocket::websocket_handler;
 
 #[macro_use]
 extern crate tracing;
@@ -44,13 +43,14 @@ async fn main() {
         .allow_origin("http://localhost:3000".parse::<axum::http::HeaderValue>().unwrap())
         .allow_credentials(true);
 
-    let app = Router::new()
+        let app = Router::new()
         .route("/register_start/:username", post(start_register))
         .route("/register_finish", post(finish_register))
         .route("/login_start/:username", post(start_authentication))
         .route("/login_finish", post(finish_authentication))
-        .merge(polls::router(app_state.broadcast_tx.clone())) // Use app_state's tx
-        .route("/ws", axum::routing::get(websocket_handler))
+        .route("/api/user", get(get_current_user)) // Added for frontend user fetch
+        .merge(polls::router(app_state.broadcast_tx.clone()))
+        .route("/ws", axum::routing::get(crate::websocket::websocket_handler))
         .layer(Extension(app_state))
         .layer(
             SessionManagerLayer::new(session_store)

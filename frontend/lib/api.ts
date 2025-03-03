@@ -1,5 +1,6 @@
 // lib/api.ts
 import axios, { AxiosResponse } from 'axios';
+import { useAppStore, Poll } from './store';
 
 const API_BASE_URL = 'http://localhost:8080';
 
@@ -13,35 +14,23 @@ interface CreatePollData {
   options: string[];
 }
 
-interface PollResponse {
-  id: string;
-  title: string;
-  options: { id: number; text: string; votes: number }[];
-  isClosed: boolean;
-}
-
-export const createPoll = async (pollData: CreatePollData): Promise<PollResponse> => {
+export const createPoll = async (pollData: CreatePollData): Promise<Poll> => {
   try {
-    const response: AxiosResponse<PollResponse> = await api.post('/api/polls', pollData);
+    const response: AxiosResponse<Poll> = await api.post('/api/polls', pollData);
+    useAppStore.getState().updatePoll(response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const message = error.response?.data || 'Failed to create poll';
-      throw new Error(typeof message === 'string' ? message : 'Failed to create poll');
-    }
-    throw new Error('An unexpected error occurred');
+    throw handleError(error, 'Failed to create poll');
   }
 };
 
-export const getPoll = async (pollId: string): Promise<PollResponse> => {
+export const getPoll = async (pollId: string): Promise<Poll> => {
   try {
-    const response: AxiosResponse<PollResponse> = await api.get(`/api/polls/${pollId}`);
+    const response: AxiosResponse<Poll> = await api.get(`/api/polls/${pollId}`);
+    useAppStore.getState().updatePoll(response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data || 'Failed to fetch poll');
-    }
-    throw new Error('An unexpected error occurred');
+    throw handleError(error, 'Failed to fetch poll');
   }
 };
 
@@ -49,48 +38,53 @@ export const voteOnPoll = async (pollId: string, optionId: number): Promise<void
   try {
     await api.post(`/api/polls/${pollId}/vote`, { optionId });
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data || 'Failed to submit vote');
-    }
-    throw new Error('An unexpected error occurred');
+    throw handleError(error, 'Failed to submit vote');
   }
 };
 
-// Fetch polls created by the logged-in user
-export const fetchUserPolls = async (): Promise<PollResponse[]> => {
+export const fetchUserPolls = async (): Promise<Poll[]> => {
   try {
-    const response: AxiosResponse<PollResponse[]> = await api.get('/api/polls/manage');
+    const response: AxiosResponse<Poll[]> = await api.get('/api/polls/manage');
+    useAppStore.getState().setPolls(response.data);
     return response.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data || 'Failed to fetch your polls');
-    }
-    throw new Error('An unexpected error occurred');
+    throw handleError(error, 'Failed to fetch your polls');
   }
 };
 
-// Close a poll
 export const closePoll = async (pollId: string): Promise<void> => {
   try {
     await api.post(`/api/polls/${pollId}/close`);
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data || 'Failed to close poll');
+    const currentPoll = useAppStore.getState().polls.find((p) => p.id === pollId);
+    if (currentPoll) {
+      useAppStore.getState().updatePoll({ ...currentPoll, isClosed: true });
     }
-    throw new Error('An unexpected error occurred');
+  } catch (error) {
+    throw handleError(error, 'Failed to close poll');
   }
 };
 
-// Reset votes for a poll
 export const resetPoll = async (pollId: string): Promise<void> => {
   try {
     await api.post(`/api/polls/${pollId}/reset`);
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data || 'Failed to reset poll');
+    const currentPoll = useAppStore.getState().polls.find((p) => p.id === pollId);
+    if (currentPoll) {
+      useAppStore.getState().updatePoll({
+        ...currentPoll,
+        options: currentPoll.options.map((opt) => ({ ...opt, votes: 0 })),
+      });
     }
-    throw new Error('An unexpected error occurred');
+  } catch (error) {
+    throw handleError(error, 'Failed to reset poll');
   }
 };
+
+function handleError(error: unknown, defaultMessage: string): Error {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data || defaultMessage;
+    return new Error(typeof message === 'string' ? message : defaultMessage);
+  }
+  return new Error('An unexpected error occurred');
+}
 
 export default api;

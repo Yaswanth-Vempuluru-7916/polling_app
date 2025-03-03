@@ -3,42 +3,27 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-
-import { getPoll, voteOnPoll } from '@/lib/api';
 import PollCard from '@/components/polls/PollCard';
-
-interface PollOption {
-  id: number;
-  text: string;
-  votes: number;
-}
-
-interface Poll {
-  id: string;
-  title: string;
-  options: PollOption[];
-  isClosed: boolean;
-}
+import { getPoll, voteOnPoll } from '@/lib/api';
+import { Poll, useAppStore } from '@/lib/store';
 
 const PollPage = () => {
-  const { pollId } = useParams(); // Get dynamic pollId from URL
+  const { pollId } = useParams();
+  const { polls, updatePoll } = useAppStore();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch poll data on mount
   useEffect(() => {
     const fetchPoll = async () => {
       try {
         const pollData = await getPoll(pollId as string);
         setPoll(pollData);
-        // Check if user has voted (stored in sessionStorage for simplicity)
         const votedPolls = JSON.parse(sessionStorage.getItem('votedPolls') || '[]');
         setHasVoted(votedPolls.includes(pollId));
       } catch (err) {
-        setError('Failed to load poll.');
-        console.error('Error fetching poll:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load poll.');
       } finally {
         setLoading(false);
       }
@@ -46,26 +31,24 @@ const PollPage = () => {
     fetchPoll();
   }, [pollId]);
 
-  // Handle voting
   const handleVote = async (optionId: number) => {
     if (hasVoted || !poll || poll.isClosed) return;
 
     try {
       await voteOnPoll(pollId as string, optionId);
-      // Update local state
-      setPoll({
+      const updatedPoll = {
         ...poll,
         options: poll.options.map((opt) =>
           opt.id === optionId ? { ...opt, votes: opt.votes + 1 } : opt
         ),
-      });
+      };
+      setPoll(updatedPoll);
+      updatePoll(updatedPoll);
       setHasVoted(true);
-      // Store vote in sessionStorage
       const votedPolls = JSON.parse(sessionStorage.getItem('votedPolls') || '[]');
       sessionStorage.setItem('votedPolls', JSON.stringify([...votedPolls, pollId]));
     } catch (err) {
-      setError('Failed to submit vote.');
-      console.error('Error voting:', err);
+      setError(err instanceof Error ? err.message : 'Failed to submit vote.');
     }
   };
 

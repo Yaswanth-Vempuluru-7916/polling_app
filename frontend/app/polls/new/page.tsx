@@ -1,25 +1,30 @@
 // app/polls/new/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PollForm from '@/components/polls/PollForm';
 import { createPoll } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-
-interface PollOption {
-  id: number;
-  text: string;
-}
+import { useAppStore } from '@/lib/store';
 
 const NewPollPage = () => {
   const router = useRouter();
+  const { user } = useAppStore();
   const [title, setTitle] = useState('');
-  const [options, setOptions] = useState<PollOption[]>([
+  const [options, setOptions] = useState<{ id: number; text: string }[]>([
     { id: 1, text: '' },
     { id: 2, text: '' },
   ]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
+
+  if (!user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +52,6 @@ const NewPollPage = () => {
       console.log('Poll created successfully:', newPoll);
       setTitle('');
       setOptions([{ id: 1, text: '' }, { id: 2, text: '' }]);
-      // Redirect to the new poll page
       router.push(`/polls/${newPoll.id}`);
     } catch (err) {
       console.error('Error creating poll:', err);

@@ -255,3 +255,40 @@ pub async fn finish_authentication(
     info!("Authentication completed successfully for UUID {}", user_unique_id);
     Ok(res)
 }
+
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct UserResponse {
+    id: String,
+    username: String,
+}
+
+pub async fn get_current_user(
+    Extension(app_state): Extension<AppState>,
+    session: Session,
+) -> Result<impl IntoResponse, WebauthnError> {
+    let user_unique_id: Uuid = session
+        .get("user_id")
+        .await?
+        .ok_or_else(|| {
+            error!("No user_id found in session for user fetch");
+            WebauthnError::CorruptSession
+        })?;
+
+    let collection = app_state.users_collection();
+    let user = collection
+        .find_one(doc! { "unique_id": user_unique_id.to_string() })
+        .await
+        .map_err(|e| WebauthnError::MongoDBError(e))?
+        .ok_or_else(|| {
+            error!("No user found with UUID {}", user_unique_id);
+            WebauthnError::UserNotFound
+        })?;
+
+    let response = UserResponse {
+        id: user.unique_id.to_string(),
+        username: user.username,
+    };
+    Ok(Json(response))
+}

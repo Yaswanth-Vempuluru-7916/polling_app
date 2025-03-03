@@ -1,45 +1,27 @@
-'use client'
-import { startAuth, startRegister } from '@/lib/auth';
-import { useState } from 'react';
+// app/page.tsx
+'use client';
 
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [username, setUsername] = useState<string>('');
-  const [message, setMessage] = useState<string>('');
-
-  const handleRegister = async () => {
-    try {
-      await startRegister(username);
-      setMessage('Registration successful!');
-    } catch (error) {
-      setMessage(`Error: ${(error as Error).message}`);
-    }
-  };
-
-  const handleLogin = async () => {
-    try {
-      await startAuth(username);
-      setMessage('Authentication successful!');
-    } catch (error) {
-      setMessage(`Error: ${(error as Error).message}`);
-    }
-  };
+  const router = useRouter();
 
   return (
     <div style={{ padding: '20px' }}>
-      <h1>WebAuthn Testing</h1>
-      <input
-        type="text"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        placeholder="Enter username"
-      />
-      <br />
-      <button onClick={handleRegister} style={{ margin: '10px' }}>
+      <h1>WebAuthn Polling App</h1>
+      <p>Welcome! Please log in or register to create and manage polls.</p>
+      <button
+        onClick={() => router.push('/login')}
+        style={{ margin: '10px', padding: '5px 10px', background: '#0070f3', color: 'white', border: 'none' }}
+      >
+        Login
+      </button>
+      <button
+        onClick={() => router.push('/register')}
+        style={{ margin: '10px', padding: '5px 10px', background: '#0070f3', color: 'white', border: 'none' }}
+      >
         Register
       </button>
-      <button onClick={handleLogin}>Login</button>
-      <p>{message}</p>
     </div>
   );
 }

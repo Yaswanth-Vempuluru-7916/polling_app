@@ -1,25 +1,14 @@
-// app/polls/[pollId]/results/page.tsx (confirming)
+// app/polls/[pollId]/results/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { getPoll } from '@/lib/api';
-
-interface PollOption {
-  id: number;
-  text: string;
-  votes: number;
-}
-
-interface Poll {
-  id: string;
-  title: String;
-  options: PollOption[];
-  isClosed: boolean;
-}
+import { useAppStore, Poll } from '@/lib/store';
 
 const PollResultsPage = () => {
   const { pollId } = useParams();
+  const { updatePoll } = useAppStore();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,8 +19,7 @@ const PollResultsPage = () => {
         const pollData = await getPoll(pollId as string);
         setPoll(pollData);
       } catch (err) {
-        setError('Failed to load poll results.');
-        console.error('Error fetching poll:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load poll results.');
       } finally {
         setLoading(false);
       }
@@ -44,12 +32,13 @@ const PollResultsPage = () => {
       ws.send(`join_poll:${pollId}`);
     };
     ws.onmessage = (event) => {
-      const updatedPoll = JSON.parse(event.data);
+      const updatedPoll: Poll = JSON.parse(event.data);
       setPoll(updatedPoll);
+      updatePoll(updatedPoll);
     };
     ws.onerror = (err) => console.error('WebSocket error:', err);
     return () => ws.close();
-  }, [pollId]);
+  }, [pollId, updatePoll]);
 
   if (loading) return <div className="text-center p-4">Loading...</div>;
   if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
