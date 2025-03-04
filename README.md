@@ -76,6 +76,7 @@ polling_app/
 │   │   ├── api.ts             # API fetch wrappers for backend calls
 │   │   └── store.ts           # Zustand/Context for global state
 │   ├── public/                # Static assets (images, etc.)
+│   ├── .env.local
 │   └── package.json           # Frontend dependencies (Next.js, React, etc.)
 ├── backend/                   # Rust Backend
 │   ├── src/
