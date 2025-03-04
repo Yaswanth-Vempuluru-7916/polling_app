@@ -47,12 +47,13 @@ const AllPollsPage = () => {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Raw WebSocket data:', data); // Debug raw data
         const updatedPoll: Poll = {
           id: data._id?.$oid || data.id || '',
           title: data.title,
           options: data.options,
           isClosed: data.is_closed || false,
-          author: data.author || 'Unknown',
+          author: data.author || 'Unknown', // Should be username, not fallback
           _id: data._id || undefined,
         };
         if (!updatedPoll.id) {

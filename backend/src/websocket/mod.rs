@@ -6,7 +6,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::startup::AppState;
+use crate::startup::{AppState, UserData};
 use crate::models::Poll;
 use axum::extract::ws::{Message, WebSocket};
 use mongodb::bson::{doc, oid::ObjectId};
@@ -21,37 +21,44 @@ pub async fn websocket_handler(
 
 async fn handle_socket(socket: WebSocket, app_state: AppState) {
     info!("New WebSocket connection established");
-    let (ws_sender, mut ws_receiver) = socket.split();
+    let ( ws_sender, mut ws_receiver) = socket.split();
     let ws_sender = Arc::new(Mutex::new(ws_sender));
     let tx = Arc::clone(&app_state.broadcast_tx);
     let mut rx = tx.subscribe();
-    let is_closed = Arc::new(Mutex::new(false)); // Shared flag to track connection state
+    let is_closed = Arc::new(Mutex::new(false));
 
     let ws_sender_clone = Arc::clone(&ws_sender);
     let is_closed_clone = Arc::clone(&is_closed);
     let app_state_clone = app_state.clone();
     tokio::spawn(async move {
-        while let Some(msg) = ws_receiver.next().await {
-            match msg {
+        while let Some(msg_result) = ws_receiver.next().await {
+            match msg_result {
                 Ok(Message::Text(text)) => {
                     info!("Received message: {}", text);
                     if text.starts_with("join_poll:") {
                         let poll_id = text.strip_prefix("join_poll:").unwrap();
                         if let Ok(poll_id) = ObjectId::parse_str(poll_id) {
                             let collection = app_state_clone.db.collection::<Poll>("polls");
+                            let users_collection = app_state_clone.db.collection::<UserData>("users");
                             match collection.find_one(doc! { "_id": poll_id }).await {
                                 Ok(Some(mut poll)) => {
                                     if poll.id.is_none() {
                                         poll.id = Some(poll_id);
                                     }
+                                    // Fetch author for initial poll
+                                    let creator = users_collection
+                                        .find_one(doc! { "unique_id": poll.creator_id.to_string() })
+                                        .await
+                                        .unwrap_or(None);
+                                    poll.author = creator.map(|u| u.username);
                                     let poll_json = serde_json::to_string(&poll).unwrap();
                                     let mut sender = ws_sender_clone.lock().await;
-                                    if let Err(e) = sender.send(Message::Text(poll_json)).await {
-                                        error!("Failed to send poll update: {:?}", e);
+                                    if sender.send(Message::Text(poll_json)).await.is_err() {
+                                        error!("Failed to send poll update: {}", poll_id);
                                         *is_closed_clone.lock().await = true;
                                         return;
                                     }
-                                    info!("Sent initial poll {} to client", poll_id);
+                                    info!("Sent initial poll {} to client with author: {:?}", poll_id, poll.author);
                                 }
                                 Ok(None) => info!("Poll {} not found", poll_id),
                                 Err(e) => {
@@ -65,8 +72,8 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
                 }
                 Ok(Message::Ping(data)) => {
                     let mut sender = ws_sender_clone.lock().await;
-                    if let Err(e) = sender.send(Message::Pong(data)).await {
-                        error!("Failed to send pong: {:?}", e);
+                    if sender.send(Message::Pong(data)).await.is_err() {
+                        error!("Failed to send pong");
                         *is_closed_clone.lock().await = true;
                         return;
                     }
@@ -100,8 +107,8 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
                 return;
             }
             let mut sender = ws_sender_ping.lock().await;
-            if let Err(e) = sender.send(Message::Ping(vec![])).await {
-                error!("Failed to send ping: {:?}", e);
+            if sender.send(Message::Ping(vec![])).await.is_err() {
+                error!("Failed to send ping");
                 return;
             }
             info!("Sent ping to keep WebSocket alive");
@@ -115,7 +122,6 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
             info!("Stopping broadcast loop due to closed connection");
             break;
         }
-        let poll = poll;
         if poll.id.is_none() {
             error!("Poll missing ID before broadcast, skipping: {:?}", poll);
             continue;

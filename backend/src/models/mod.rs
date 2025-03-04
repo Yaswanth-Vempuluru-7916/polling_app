@@ -1,4 +1,5 @@
 // src/models/mod.rs
+// src/models/mod.rs
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
@@ -15,13 +16,14 @@ pub struct Poll {
     pub id: Option<mongodb::bson::oid::ObjectId>,
     pub title: String,
     pub options: Vec<PollOption>,
-    #[serde(with = "uuid_binary")] // Custom serialization for UUID as Binary
+    #[serde(with = "uuid_binary")]
     pub creator_id: Uuid,
     pub is_closed: bool,
     pub created_at: mongodb::bson::DateTime,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>, // Already correct
 }
 
-// Custom serialization module for UUID to BSON Binary
 mod uuid_binary {
     use serde::{Serialize, Deserialize, Serializer, Deserializer};
     use uuid::Uuid;
@@ -47,7 +49,6 @@ mod uuid_binary {
     }
 }
 
-// Re-export UserData from startup (unchanged)
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserData {
     pub username: String,
