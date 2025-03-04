@@ -7,6 +7,7 @@ use tracing::info;
 use uuid::Uuid;
 use tokio::sync::broadcast::{self, Sender};
 use crate::models::Poll;
+use std::env;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserData {
@@ -35,18 +36,24 @@ where
 pub struct AppState {
     pub webauthn: Arc<Webauthn>,
     pub db: Database,
-    pub broadcast_tx: Arc<Sender<Poll>>, // Add broadcast channel
+    pub broadcast_tx: Arc<Sender<Poll>>,
 }
 
 impl AppState {
     pub async fn new() -> Self {
         dotenv().ok();
 
-        let rp_id = "localhost";
-        let rp_origin = Url::parse("http://localhost:3000").expect("Invalid URL");
-        let builder = WebauthnBuilder::new(rp_id, &rp_origin).expect("Invalid configuration");
-        let builder = builder.rp_name("Axum Webauthn-rs");
-        let webauthn = Arc::new(builder.build().expect("Invalid configuration"));
+        // Load from environment variables with fallbacks for local dev
+        let rp_id = env::var("RP_ID").unwrap_or_else(|_| "localhost".to_string());
+        let rp_origin = env::var("RP_ORIGIN")
+            .unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let rp_name = env::var("RP_NAME")
+            .unwrap_or_else(|_| "Axum Webauthn-rs".to_string());
+
+        let rp_origin_url = Url::parse(&rp_origin).expect("Invalid RP_ORIGIN URL in .env");
+        let builder = WebauthnBuilder::new(&rp_id, &rp_origin_url).expect("Invalid WebAuthn configuration");
+        let builder = builder.rp_name(&rp_name);
+        let webauthn = Arc::new(builder.build().expect("Failed to build WebAuthn"));
 
         let mongo_uri = std::env::var("MONGODB_URI").expect("MONGODB_URI must be set in .env");
         info!("Connecting to MongoDB ....");
@@ -56,7 +63,7 @@ impl AppState {
         let db = client.database("polling-app");
         info!("Using database: polling_db, collection: users");
 
-        let (tx, _) = broadcast::channel::<Poll>(100); // Create channel once
+        let (tx, _) = broadcast::channel::<Poll>(100);
         let broadcast_tx = Arc::new(tx);
 
         Self { webauthn, db, broadcast_tx }

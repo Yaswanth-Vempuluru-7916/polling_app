@@ -52,7 +52,8 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(vec![header::CONTENT_TYPE])
         .allow_origin(
-            "http://localhost:3000"
+            env::var("RP_ORIGIN")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string())
                 .parse::<axum::http::HeaderValue>()
                 .unwrap(),
         )
@@ -97,7 +98,7 @@ async fn main() {
         .nest_service("/", tower_http::services::ServeDir::new("assets/js"));
 
     let port: u16 = env::var("PORT")
-        .unwrap_or_else(|_| "8080".to_string()) // Default to 8080 if not set
+        .unwrap_or_else(|_| "8080".to_string())
         .parse()
         .expect("PORT must be a valid number");
 

@@ -116,9 +116,13 @@ polling_app/
      ```bash
      cd backend
      ```
-   - Create a `.env` file with your MongoDB URI:
+   - Create a `.env` file:
      ```plaintext
      MONGODB_URI=mongodb://localhost:27017/polling-app
+     PORT=8080
+     RP_ID=localhost
+     RP_ORIGIN=http://localhost:3000
+     RP_NAME=Polling App
      ```
    - Install dependencies and run:
      ```bash
@@ -130,6 +134,11 @@ polling_app/
    - Navigate to the frontend directory:
      ```bash
      cd ../frontend
+     ```
+   - Create a `.env.local` file:
+     ```plaintext
+     NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+     NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
      ```
    - Install dependencies and run:
      ```bash
