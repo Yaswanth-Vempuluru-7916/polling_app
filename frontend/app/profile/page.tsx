@@ -71,9 +71,9 @@ const ProfilePage = () => {
   if (error) return <div className="text-red-400 text-center p-4">{error}</div>;
 
   return (
-    <div className="min-h-screen bg-[#0D0D0D] text-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-gray-200">
       <Navbar />
-      <div className="max-w-4xl mx-auto p-6 mt-8 bg-[#181818] rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.8)] border border-gray-700">
+      <div className="max-w-4xl mx-auto p-6 mt-8 bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.8)] border border-gray-700">
         <h1 className="text-2xl font-semibold text-gray-100 mb-6 text-center tracking-wide">
           👤 Profile
         </h1>
@@ -96,7 +96,7 @@ const ProfilePage = () => {
             {polls.map((poll) => (
               <div
                 key={poll.id}
-                className="border border-gray-700 p-4 rounded-md bg-[#252525] shadow-md hover:shadow-[0_4px_15px_rgba(255,255,255,0.1)] transition-shadow duration-300"
+                className="border border-gray-700 p-4 rounded-md bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] shadow-md hover:shadow-[0_4px_15px_rgba(255,255,255,0.1)] transition-shadow duration-300"
               >
                 <h3 className="text-lg font-semibold text-gray-200 mb-2">{poll.title}</h3>
                 <PollCard poll={poll} hasVoted={poll.isClosed} onVote={() => {}} />
