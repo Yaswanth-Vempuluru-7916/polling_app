@@ -8,10 +8,11 @@ interface PollOption {
 }
 
 interface Poll {
-  id: string;
+  id: String;
   title: string;
   options: PollOption[];
   isClosed: boolean;
+  author: string; // Added author field
 }
 
 interface PollCardProps {
@@ -21,6 +22,7 @@ interface PollCardProps {
 }
 
 const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
+  console.log('PollCard poll:', poll);
   const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
 
   return (
@@ -39,7 +41,8 @@ const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
       )}
 
       {/* Poll Question */}
-      <h2 className="text-lg font-bold text-gray-100 mt-5 mb-6 drop-shadow-md">{poll.title}</h2>
+      <h2 className="text-lg font-bold text-gray-100 mt-5 mb-2 drop-shadow-md">{poll.title}</h2>
+      <p className="text-sm text-gray-400 mb-4">Created by {poll.author}</p>
 
       {/* Poll Options */}
       <div className="space-y-5">

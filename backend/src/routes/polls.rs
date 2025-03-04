@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use mongodb::bson::{doc, oid::ObjectId, Binary};
 use chrono::Utc;
 use crate::error::WebauthnError;
-use crate::startup::AppState;
+use crate::startup::{AppState, UserData};
 use crate::models::{Poll, PollOption};
 use uuid::Uuid;
 
@@ -35,13 +35,14 @@ pub struct EditPollRequest {
     pub options: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Debug)]
 pub struct PollResponse {
     pub id: String,
     pub title: String,
     pub options: Vec<PollOption>,
     #[serde(rename = "isClosed")]
     pub is_closed: bool,
+    pub author: String, // Added author field
 }
 
 pub fn router(broadcast_tx: Arc<tokio::sync::broadcast::Sender<Poll>>) -> Router {
@@ -89,6 +90,12 @@ pub async fn create_poll(
     };
 
     let collection = app_state.db.collection::<Poll>("polls");
+    let users_collection = app_state.db.collection::<UserData>("users");
+    let user = users_collection
+        .find_one(doc! { "unique_id": user_unique_id.to_string() })
+        .await?
+        .ok_or_else(|| WebauthnError::Unknown)?;
+
     match collection.insert_one(&poll).await {
         Ok(result) => {
             info!("Poll created by user {}: {:?}", user_unique_id, result.inserted_id);
@@ -98,6 +105,7 @@ pub async fn create_poll(
                 title: poll.title.clone(),
                 options: poll.options.clone(),
                 is_closed: poll.is_closed,
+                author: user.username, // Added author
             };
             let mut updated_poll = poll;
             updated_poll.id = Some(ObjectId::parse_str(&poll_id).unwrap());
@@ -118,14 +126,20 @@ pub async fn get_poll(
 ) -> Result<impl IntoResponse, WebauthnError> {
     let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
     let collection = app_state.db.collection::<Poll>("polls");
+    let users_collection = app_state.db.collection::<UserData>("users");
 
     match collection.find_one(doc! { "_id": poll_id }).await {
         Ok(Some(poll)) => {
+            let user = users_collection
+                .find_one(doc! { "unique_id": poll.creator_id.to_string() })
+                .await?
+                .ok_or_else(|| WebauthnError::Unknown)?;
             let response = PollResponse {
                 id: poll.id.unwrap().to_hex(),
                 title: poll.title,
                 options: poll.options,
                 is_closed: poll.is_closed,
+                author: user.username, // Added author
             };
             Ok(Json(response))
         }
@@ -172,8 +186,7 @@ pub async fn vote_on_poll(
         Ok(result) if result.matched_count > 0 => {
             session.insert(&voted_key, true).await?;
 
-            // Fetch username from users collection
-            let users_collection = app_state.db.collection::<crate::startup::UserData>("users");
+            let users_collection = app_state.db.collection::<UserData>("users");
             let voter = users_collection
                 .find_one(doc! { "unique_id": user_unique_id.to_string() })
                 .await
@@ -214,6 +227,7 @@ pub async fn get_user_polls(
 
     info!("Fetching polls for user_id: {}", user_unique_id);
     let collection = app_state.db.collection::<Poll>("polls");
+    let users_collection = app_state.db.collection::<UserData>("users");
     let uuid_binary = Binary {
         subtype: mongodb::bson::spec::BinarySubtype::Uuid,
         bytes: user_unique_id.as_bytes().to_vec(),
@@ -223,11 +237,17 @@ pub async fn get_user_polls(
     let polls: Vec<Poll> = cursor.try_collect().await.map_err(|e| WebauthnError::MongoDBError(e))?;
     info!("Found {} polls for user {}", polls.len(), user_unique_id);
 
+    let user = users_collection
+        .find_one(doc! { "unique_id": user_unique_id.to_string() })
+        .await?
+        .ok_or_else(|| WebauthnError::Unknown)?;
+
     let response: Vec<PollResponse> = polls.into_iter().map(|poll| PollResponse {
         id: poll.id.unwrap().to_hex(),
         title: poll.title,
         options: poll.options,
         is_closed: poll.is_closed,
+        author: user.username.clone(), // Added author
     }).collect();
 
     Ok(Json(response))
@@ -371,6 +391,7 @@ pub async fn edit_poll(
 
     let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
     let collection = app_state.db.collection::<Poll>("polls");
+    let users_collection = app_state.db.collection::<UserData>("users");
     let uuid_binary = Binary {
         subtype: mongodb::bson::spec::BinarySubtype::Uuid,
         bytes: user_unique_id.as_bytes().to_vec(),
@@ -406,6 +427,10 @@ pub async fn edit_poll(
             info!("Poll {} edited by user {}", poll_id, user_unique_id);
             let updated_poll = collection.find_one(doc! { "_id": poll_id }).await?;
             if let Some(poll) = updated_poll {
+                let user = users_collection
+                    .find_one(doc! { "unique_id": poll.creator_id.to_string() })
+                    .await?
+                    .ok_or_else(|| WebauthnError::Unknown)?;
                 let _ = app_state.broadcast_tx.send(poll.clone());
                 info!("Broadcasted edited poll: {}", poll_id);
                 Ok(Json(PollResponse {
@@ -413,6 +438,7 @@ pub async fn edit_poll(
                     title: poll.title,
                     options: poll.options,
                     is_closed: poll.is_closed,
+                    author: user.username, // Added author
                 }))
             } else {
                 error!("Poll {} not found after edit", poll_id);
@@ -435,17 +461,29 @@ pub async fn get_all_polls(
 ) -> Result<impl IntoResponse, WebauthnError> {
     info!("Fetching all polls");
     let collection = app_state.db.collection::<Poll>("polls");
+    let users_collection = app_state.db.collection::<UserData>("users");
     let cursor = collection.find(doc! {}).await.map_err(|e| WebauthnError::MongoDBError(e))?;
-
     let polls: Vec<Poll> = cursor.try_collect().await.map_err(|e| WebauthnError::MongoDBError(e))?;
     info!("Found {} polls total", polls.len());
 
-    let response: Vec<PollResponse> = polls.into_iter().map(|poll| PollResponse {
-        id: poll.id.unwrap().to_hex(),
-        title: poll.title,
-        options: poll.options,
-        is_closed: poll.is_closed,
-    }).collect();
+    let mut response: Vec<PollResponse> = Vec::new();
+    for poll in polls {
+        let user = users_collection
+            .find_one(doc! { "unique_id": poll.creator_id.to_string() })
+            .await
+            .map_err(|e| WebauthnError::MongoDBError(e))?;
+        let username = user.map(|u| u.username).unwrap_or_else(|| {
+            error!("User not found for creator_id: {}", poll.creator_id);
+            "Unknown".to_string()
+        });
+        response.push(PollResponse {
+            id: poll.id.unwrap().to_hex(),
+            title: poll.title,
+            options: poll.options,
+            is_closed: poll.is_closed,
+            author: username,
+        });
+    }
 
     Ok(Json(response))
 }

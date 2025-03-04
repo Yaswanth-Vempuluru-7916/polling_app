@@ -48,15 +48,18 @@ const AllPollsPage = () => {
       try {
         const data = JSON.parse(event.data);
         const updatedPoll: Poll = {
-          ...data,
           id: data._id?.$oid || data.id || '',
+          title: data.title,
+          options: data.options,
+          isClosed: data.is_closed || false,
+          author: data.author || 'Unknown',
           _id: data._id || undefined,
         };
         if (!updatedPoll.id) {
           console.error('Received poll with no valid ID:', updatedPoll);
           return;
         }
-        console.log('Received WebSocket update for poll:', updatedPoll.id);
+        console.log('Received WebSocket update for poll:', updatedPoll);
         setPolls((prevPolls) => {
           const pollExists = prevPolls.some(p => p.id === updatedPoll.id);
           if (pollExists) {

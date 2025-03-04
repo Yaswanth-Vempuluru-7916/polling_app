@@ -19,15 +19,17 @@ interface EditPollData {
   options: string[];
 }
 
-// Helper to normalize Poll data
 const normalizePoll = (poll: any): Poll => {
   const id = poll._id?.$oid || poll.id;
   if (!id) throw new Error('Poll missing valid ID');
-  return {
+  const normalized = {
     ...poll,
     id,
     _id: poll._id || undefined,
+    author: poll.author || 'Unknown',
   };
+  console.log('Normalized poll:', normalized); // Debug log
+  return normalized;
 };
 
 export const createPoll = async (pollData: CreatePollData): Promise<Poll> => {

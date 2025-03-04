@@ -9,13 +9,14 @@ export interface PollOption {
 }
 
 export interface Poll {
-  id: string; // Keep required, derived from _id.$oid
-  _id?: { $oid: string }; // Optional backend format
+  id: string;
+  _id?: { $oid: string };
   title: string;
   options: PollOption[];
   isClosed: boolean;
-  creator_id?: any; // Refine if needed
-  created_at?: any; // Refine if needed
+  creator_id?: any;
+  created_at?: any;
+  author: string; // Added author
 }
 
 interface User {
