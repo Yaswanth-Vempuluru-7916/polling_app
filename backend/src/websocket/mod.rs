@@ -21,12 +21,14 @@ pub async fn websocket_handler(
 
 async fn handle_socket(socket: WebSocket, app_state: AppState) {
     info!("New WebSocket connection established");
-    let ( ws_sender, mut ws_receiver) = socket.split();
+    let (ws_sender, mut ws_receiver) = socket.split();
     let ws_sender = Arc::new(Mutex::new(ws_sender));
     let tx = Arc::clone(&app_state.broadcast_tx);
     let mut rx = tx.subscribe();
+    let is_closed = Arc::new(Mutex::new(false)); // Shared flag to track connection state
 
     let ws_sender_clone = Arc::clone(&ws_sender);
+    let is_closed_clone = Arc::clone(&is_closed);
     let app_state_clone = app_state.clone();
     tokio::spawn(async move {
         while let Some(msg) = ws_receiver.next().await {
@@ -46,6 +48,7 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
                                     let mut sender = ws_sender_clone.lock().await;
                                     if let Err(e) = sender.send(Message::Text(poll_json)).await {
                                         error!("Failed to send poll update: {:?}", e);
+                                        *is_closed_clone.lock().await = true;
                                         return;
                                     }
                                     info!("Sent initial poll {} to client", poll_id);
@@ -53,6 +56,7 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
                                 Ok(None) => info!("Poll {} not found", poll_id),
                                 Err(e) => {
                                     error!("Database error fetching poll {}: {:?}", poll_id, e);
+                                    *is_closed_clone.lock().await = true;
                                     return;
                                 }
                             }
@@ -63,29 +67,38 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
                     let mut sender = ws_sender_clone.lock().await;
                     if let Err(e) = sender.send(Message::Pong(data)).await {
                         error!("Failed to send pong: {:?}", e);
+                        *is_closed_clone.lock().await = true;
                         return;
                     }
                     info!("Sent pong response");
                 }
                 Ok(Message::Close(_)) => {
                     info!("Client closed WebSocket connection");
+                    *is_closed_clone.lock().await = true;
                     return;
                 }
                 Err(e) => {
                     error!("WebSocket receive error: {:?}", e);
+                    *is_closed_clone.lock().await = true;
                     return;
                 }
                 _ => info!("Received non-text message, ignoring"),
             }
         }
         info!("WebSocket receiver loop ended");
+        *is_closed_clone.lock().await = true;
     });
 
     let ws_sender_ping = Arc::clone(&ws_sender);
+    let is_closed_ping = Arc::clone(&is_closed);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
         loop {
             interval.tick().await;
+            if *is_closed_ping.lock().await {
+                info!("Stopping ping loop due to closed connection");
+                return;
+            }
             let mut sender = ws_sender_ping.lock().await;
             if let Err(e) = sender.send(Message::Ping(vec![])).await {
                 error!("Failed to send ping: {:?}", e);
@@ -96,8 +109,13 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
     });
 
     let ws_sender_broadcast = Arc::clone(&ws_sender);
+    let is_closed_broadcast = Arc::clone(&is_closed);
     while let Ok(poll) = rx.recv().await {
-        let  poll = poll;
+        if *is_closed_broadcast.lock().await {
+            info!("Stopping broadcast loop due to closed connection");
+            break;
+        }
+        let poll = poll;
         if poll.id.is_none() {
             error!("Poll missing ID before broadcast, skipping: {:?}", poll);
             continue;
@@ -110,10 +128,9 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
             }
         };
         let mut sender = ws_sender_broadcast.lock().await;
-        // Check if the sender is still open before sending
         if sender.send(Message::Text(poll_json)).await.is_err() {
             error!("Failed to broadcast poll update: {:?}", poll.id.unwrap().to_hex());
-            continue; // Skip to next poll if this connection is closed
+            continue;
         }
         info!("Broadcasted poll update: {}", poll.id.unwrap().to_hex());
     }
