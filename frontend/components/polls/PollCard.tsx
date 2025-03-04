@@ -1,3 +1,4 @@
+// components/polls/PollCard.tsx
 'use client';
 
 interface PollOption {
@@ -21,16 +22,22 @@ interface PollCardProps {
 
 const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
   const totalVotes = poll.options.reduce((sum, opt) => sum + opt.votes, 0);
-  
+
   return (
-    <div className="bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]  border border-gray-700 hover:border-cyan-400 rounded-xl p-5 shadow-lg hover:shadow-xl hover:shadow-cyan-900/20 transition-all duration-300">
+    <div
+      className={`bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]  border border-gray-700 rounded-xl p-5 shadow-lg transition-all duration-300 relative ${
+        poll.isClosed
+          ? 'opacity-50 grayscale hover:opacity-75 hover:grayscale-0'
+          : 'hover:border-cyan-400 hover:shadow-xl hover:shadow-cyan-900/20'
+      }`}
+    >
       {/* Poll Status Badge */}
       {poll.isClosed && (
         <div className="absolute top-2 right-2 bg-red-500/80 text-white text-xs font-bold px-3 py-1 rounded-lg shadow-md">
           Closed
         </div>
       )}
-      
+
       {/* Poll Question */}
       <h2 className="text-lg font-bold text-gray-100 mb-6 drop-shadow-md">{poll.title}</h2>
 
@@ -44,7 +51,7 @@ const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
                 <span className="text-gray-200">{option.text}</span>
                 <span className="text-gray-400 text-sm">{option.votes} votes ({percentage.toFixed(1)}%)</span>
               </div>
-              
+
               {/* Vote Bar and Button Container */}
               <div className="flex items-center gap-2">
                 {/* Vote Bar */}
@@ -54,8 +61,8 @@ const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-                
-                {/* Vote Button */}
+
+                {/* Vote Button (Hidden for Closed Polls) */}
                 {!hasVoted && !poll.isClosed && (
                   <div className="relative group">
                     <button
