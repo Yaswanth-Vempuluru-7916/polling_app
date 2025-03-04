@@ -39,7 +39,7 @@ const PollCard = ({ poll, hasVoted, onVote }: PollCardProps) => {
       )}
 
       {/* Poll Question */}
-      <h2 className="text-lg font-bold text-gray-100 mb-6 drop-shadow-md">{poll.title}</h2>
+      <h2 className="text-lg font-bold text-gray-100 mt-5 mb-6 drop-shadow-md">{poll.title}</h2>
 
       {/* Poll Options */}
       <div className="space-y-5">
