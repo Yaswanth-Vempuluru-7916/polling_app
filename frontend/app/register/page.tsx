@@ -3,25 +3,20 @@
 
 import { useState } from 'react';
 import { startRegister } from '@/lib/auth';
-import { useAppStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import Navbar from '@/components/Navbar';
 
 const RegisterPage = () => {
   const [username, setUsername] = useState<string>('');
   const [message, setMessage] = useState<string>('');
-  const { setUser } = useAppStore();
   const router = useRouter();
 
   const handleRegister = async () => {
     try {
       await startRegister(username);
-      const response = await axios.get('http://localhost:8080/api/user', { withCredentials: true });
-      const userData = response.data;
-      setUser({ username: userData.username, id: userData.id });
-      setMessage('Registration successful!');
-      router.push('/polls/new');
+      setMessage('Registration successful! Please log in.');
+      // Redirect to login page instead of fetching user data
+      setTimeout(() => router.push('/login'), 1000); // Small delay to show success message
     } catch (error) {
       setMessage(`Error: ${(error as Error).message}`);
     }
@@ -30,8 +25,8 @@ const RegisterPage = () => {
   return (
     <div className="min-h-screen bg-[#0d0d14] text-gray-100 flex flex-col items-center">
       <div className="w-full">
-    <Navbar />
-  </div>
+        <Navbar />
+      </div>
       <div className="max-w-md w-full mt-16 p-6 bg-[#131328] rounded-lg shadow-lg text-center border border-gray-700">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
           Register with WebAuthn

@@ -1,7 +1,7 @@
 // app/polls/[pollId]/results/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getPoll } from '@/lib/api';
 import { useAppStore, Poll } from '@/lib/store';
@@ -15,6 +15,7 @@ const PollResultsPage = () => {
   const [loading, setLoading] = useState(true);
   const [isHydrating, setIsHydrating] = useState(true);
   const router = useRouter();
+  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const unsubscribe = useAppStore.subscribe(() => {
@@ -30,6 +31,7 @@ const PollResultsPage = () => {
     }
   }, [router, isHydrating]);
 
+  // Fetch initial poll data
   useEffect(() => {
     const fetchPoll = async () => {
       try {
@@ -44,6 +46,56 @@ const PollResultsPage = () => {
     fetchPoll();
   }, [pollId]);
 
+  // WebSocket for live updates
+  useEffect(() => {
+    if (isHydrating || !pollId) return;
+
+    const ws = new WebSocket('ws://localhost:8080/ws');
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log(`Connected to WebSocket for poll ${pollId}`);
+      ws.send(`join_poll:${pollId}`);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const updatedPoll: Poll = {
+          ...data,
+          id: data._id?.$oid || data.id || '',
+          _id: data._id || undefined,
+        };
+        if (!updatedPoll.id) {
+          console.error('Received poll with no valid ID:', updatedPoll);
+          return;
+        }
+        if (updatedPoll.id === pollId) {
+          console.log('Received WebSocket update for poll:', updatedPoll.id);
+          setPoll(updatedPoll);
+          updatePoll(updatedPoll); // Optional: sync with store
+        }
+      } catch (err) {
+        console.error('Error parsing WebSocket message:', err);
+      }
+    };
+
+    ws.onerror = (err: Event) => {
+      console.error('WebSocket error:', err);
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket closed:', event.code, event.reason);
+      wsRef.current = null;
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    };
+  }, [isHydrating, pollId]);
+
   if (isHydrating || loading) return <div className="text-center p-4">Loading...</div>;
   if (error) return <div className="text-center p-4 text-red-500">{error}</div>;
   if (!poll) return <div className="text-center p-4">Poll not found.</div>;
@@ -53,7 +105,7 @@ const PollResultsPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] overflow-hidden relative">
       <Navbar />
-      <div className="max-w-2xl mx-auto p-6 mt-12 bg-[#1e1e2e] text-gray-200 rounded-lg shadow-lg border border-gray-700">
+      <div className="max-w-2xl mx-auto p-6 mt-12 bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-gray-200 rounded-lg shadow-lg border border-gray-700">
         <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-teal-300 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
           {poll.title} - Live Results
         </h1>
