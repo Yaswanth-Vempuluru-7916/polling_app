@@ -17,7 +17,6 @@ const LoginPage = () => {
   const handleLogin = async () => {
     try {
       await startAuth(username);
-      // Retry fetching user data with a small delay if needed
       const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
       const userData = response.data;
       setUser({ username: userData.username, id: userData.id });
@@ -26,9 +25,11 @@ const LoginPage = () => {
       const intendedPath = document.referrer.includes('/polls/manage') ? '/polls/manage' : '/polls/new';
       router.push(intendedPath);
     } catch (error) {
-      console.error('Login error:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-      router.push('/login'); // Ensure redirect to login on failure
+      if ((error as Error).name === 'NotAllowedError') {
+        setMessage('Authentication cancelled. Please try again.');
+      } else {
+        setMessage(`Error: ${(error as Error).message}`);
+      }
     }
   };
 
@@ -57,7 +58,7 @@ const LoginPage = () => {
           <span className="absolute top-0 left-0 w-full h-0 bg-white/20 group-hover:h-full transition-all duration-300"></span>
         </button>
         {message && (
-          <p className={`mt-4 text-sm ${message.includes('Error') ? 'text-red-400' : 'text-green-400'}`}>
+          <p className={`mt-4 text-sm ${message.includes('Error') || message.includes('cancelled') ? 'text-red-400' : 'text-green-400'}`}>
             {message}
           </p>
         )}

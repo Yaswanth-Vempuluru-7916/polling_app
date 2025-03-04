@@ -30,7 +30,7 @@ const PollResultsPage = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/api/user', { withCredentials: true });
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
         setUser({ username: response.data.username, id: response.data.id });
         console.log('Session synced for user:', response.data.username);
       } catch (err) {
@@ -70,7 +70,7 @@ const PollResultsPage = () => {
   useEffect(() => {
     if (isHydrating || !pollId || !user) return;
 
-    const ws = new WebSocket('ws://localhost:8080/ws');
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL as string);
     wsRef.current = ws;
 
     ws.onopen = () => {

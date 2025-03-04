@@ -7,10 +7,11 @@ import { useAppStore, Poll } from '@/lib/store';
 import PollCard from '@/components/polls/PollCard';
 import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 
 const AllPollsPage = () => {
   const router = useRouter();
-  const { user } = useAppStore(); // Add user from store
+  const { user } = useAppStore();
   const [polls, setPolls] = useState<Poll[]>([]);
   const [votedPolls, setVotedPolls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,6 @@ const AllPollsPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // WebSocket connection with login check
   useEffect(() => {
     if (isHydrating) return;
 
@@ -37,7 +37,7 @@ const AllPollsPage = () => {
       return;
     }
 
-    const ws = new WebSocket('ws://localhost:8080/ws');
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL as string);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -85,9 +85,8 @@ const AllPollsPage = () => {
         ws.close();
       }
     };
-  }, [isHydrating, user, router]); // Add user and router to dependencies
+  }, [isHydrating, user, router]);
 
-  // Load polls and join them
   useEffect(() => {
     if (isHydrating) return;
 
@@ -123,9 +122,28 @@ const AllPollsPage = () => {
     }
   };
 
+  const validateSession = async () => {
+    try {
+      await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
+      return true;
+    } catch (err) {
+      // Silently handle invalid session; no need to log in console
+      return false;
+    }
+  };
+
   const handleVote = async (pollId: string, optionId: number) => {
     if (!pollId || votedPolls.includes(pollId)) {
       console.error('Invalid poll ID or already voted:', pollId);
+      return;
+    }
+
+    setError(null);
+
+    const isSessionValid = await validateSession();
+    if (!isSessionValid) {
+      console.log('Invalid session detected, redirecting to /login');
+      router.push('/login');
       return;
     }
 
