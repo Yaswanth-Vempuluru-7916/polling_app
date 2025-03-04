@@ -24,6 +24,7 @@ chrono = "0.4.40"
 tokio-tungstenite = "0.26.2"
 futures-util = "0.3.31"
 serde_json = "1.0.139"
+dotenvy = "0.15.7"
 
 [features]
 default = ["javascript"]

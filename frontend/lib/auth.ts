@@ -7,7 +7,7 @@ import {
     PublicKeyCredentialRequestOptionsJSON,
   } from '@simplewebauthn/browser';
   
-  const API_BASE_URL = 'http://localhost:8080';
+  const API_BASE_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}`;
   
   // Start Registration
   export async function startRegister(username: string): Promise<string> {

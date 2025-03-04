@@ -150,6 +150,11 @@ pub async fn vote_on_poll(
     let poll_id = ObjectId::parse_str(&poll_id).map_err(|_| WebauthnError::Unknown)?;
     let collection = app_state.db.collection::<Poll>("polls");
 
+    let user_unique_id: Uuid = session.get("user_id").await?.ok_or_else(|| {
+        error!("No user_id found in session for voting on poll {}", poll_id);
+        WebauthnError::CorruptSession
+    })?;
+
     let voted_key = format!("voted_{}", poll_id);
     if session.get::<bool>(&voted_key).await?.unwrap_or(false) {
         info!("User already voted on poll {}", poll_id);
@@ -166,7 +171,19 @@ pub async fn vote_on_poll(
     match update_result {
         Ok(result) if result.matched_count > 0 => {
             session.insert(&voted_key, true).await?;
-            info!("Vote recorded for poll {} on option {}", poll_id, vote.option_id);
+
+            // Fetch username from users collection
+            let users_collection = app_state.db.collection::<crate::startup::UserData>("users");
+            let voter = users_collection
+                .find_one(doc! { "unique_id": user_unique_id.to_string() })
+                .await
+                .map_err(|e| {
+                    error!("Failed to fetch user {}: {:?}", user_unique_id, e);
+                    WebauthnError::MongoDBError(e)
+                })?;
+            let username = voter.map(|u| u.username).unwrap_or_else(|| "Unknown".to_string());
+
+            info!("Vote recorded for poll {} on option {} by user {}", poll_id, vote.option_id, username);
             if let Ok(Some(updated_poll)) = collection.find_one(doc! { "_id": poll_id }).await {
                 let _ = broadcast_tx.send(updated_poll.clone());
                 info!("Broadcasted updated poll: {}", poll_id);

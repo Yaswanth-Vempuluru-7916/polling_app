@@ -2,7 +2,7 @@
 import axios, { AxiosResponse } from 'axios';
 import { useAppStore, Poll } from './store';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_BACKEND_URL}`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,

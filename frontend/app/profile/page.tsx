@@ -47,7 +47,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     if (!isHydrating && user && polls.length > 0) {
-      const ws = new WebSocket('ws://localhost:8080/ws');
+      const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL as string);
       ws.onopen = () => {
         console.log('Connected to WebSocket for profile');
         polls.forEach((poll) => ws.send(`join_poll:${poll.id}`));

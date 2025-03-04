@@ -21,7 +21,7 @@ pub async fn websocket_handler(
 
 async fn handle_socket(socket: WebSocket, app_state: AppState) {
     info!("New WebSocket connection established");
-    let (ws_sender, mut ws_receiver) = socket.split();
+    let ( ws_sender, mut ws_receiver) = socket.split();
     let ws_sender = Arc::new(Mutex::new(ws_sender));
     let tx = Arc::clone(&app_state.broadcast_tx);
     let mut rx = tx.subscribe();
@@ -40,7 +40,7 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
                             match collection.find_one(doc! { "_id": poll_id }).await {
                                 Ok(Some(mut poll)) => {
                                     if poll.id.is_none() {
-                                        poll.id = Some(poll_id); // Ensure id is set
+                                        poll.id = Some(poll_id);
                                     }
                                     let poll_json = serde_json::to_string(&poll).unwrap();
                                     let mut sender = ws_sender_clone.lock().await;
@@ -97,7 +97,7 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
 
     let ws_sender_broadcast = Arc::clone(&ws_sender);
     while let Ok(poll) = rx.recv().await {
-        let poll = poll;
+        let  poll = poll;
         if poll.id.is_none() {
             error!("Poll missing ID before broadcast, skipping: {:?}", poll);
             continue;
@@ -110,9 +110,10 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
             }
         };
         let mut sender = ws_sender_broadcast.lock().await;
-        if let Err(e) = sender.send(Message::Text(poll_json)).await {
-            error!("Failed to broadcast poll update: {:?}", e);
-            return;
+        // Check if the sender is still open before sending
+        if sender.send(Message::Text(poll_json)).await.is_err() {
+            error!("Failed to broadcast poll update: {:?}", poll.id.unwrap().to_hex());
+            continue; // Skip to next poll if this connection is closed
         }
         info!("Broadcasted poll update: {}", poll.id.unwrap().to_hex());
     }

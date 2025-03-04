@@ -31,7 +31,7 @@ const PollManagePage = () => {
     if (!isHydrating && !user) {
       const fetchUser = async () => {
         try {
-          const response = await axios.get('http://localhost:8080/api/user', { withCredentials: true });
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
           setUser({ username: response.data.username, id: response.data.id });
         } catch (err) {
           router.push('/login');

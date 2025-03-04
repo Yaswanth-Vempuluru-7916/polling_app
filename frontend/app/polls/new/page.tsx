@@ -7,6 +7,7 @@ import { createPoll } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import Navbar from '@/components/Navbar';
+import axios from 'axios';
 
 const NewPollPage = () => {
   const router = useRouter();
@@ -34,6 +35,17 @@ const NewPollPage = () => {
     }
   }, [user, router, isHydrating]);
 
+  // Validate session before poll creation
+  const validateSession = async () => {
+    try {
+      await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
+      return true;
+    } catch (err) {
+      console.error('Session validation failed:', err);
+      return false;
+    }
+  };
+
   if (isHydrating) return <div className="text-center p-4">Loading...</div>;
   if (!user) return null;
 
@@ -50,6 +62,15 @@ const NewPollPage = () => {
     const validOptions = options.filter((opt) => opt.text.trim());
     if (validOptions.length < 2) {
       setError('At least two options are required.');
+      setLoading(false);
+      return;
+    }
+
+    // Check session validity before creating poll
+    const isSessionValid = await validateSession();
+    if (!isSessionValid) {
+      setError('Session expired or invalid. Please log in again.');
+      router.push('/login');
       setLoading(false);
       return;
     }
@@ -120,7 +141,6 @@ const NewPollPage = () => {
           ))}
         </div>
 
-        {/* Buttons in the Same Row */}
         <div className="flex justify-between items-center">
           <button
             onClick={() =>

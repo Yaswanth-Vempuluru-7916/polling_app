@@ -50,7 +50,7 @@ const PollResultsPage = () => {
   useEffect(() => {
     if (isHydrating || !pollId) return;
 
-    const ws = new WebSocket('ws://localhost:8080/ws');
+    const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL as string);
     wsRef.current = ws;
 
     ws.onopen = () => {

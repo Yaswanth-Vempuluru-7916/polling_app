@@ -1,26 +1,36 @@
 // src/main.rs
-use axum::{extract::Extension, http::StatusCode, response::IntoResponse, routing::{post, get}, Router};
+use crate::auth::{
+    finish_authentication, finish_register, get_current_user, start_authentication, start_register,
+};
+use crate::routes::polls;
+use crate::startup::AppState;
+use axum::{
+    extract::Extension,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Router,
+};
+use dotenvy::dotenv;
+use http::{header, Method};
 use std::net::SocketAddr;
+use std::env;
 #[cfg(feature = "wasm")]
 use std::path::PathBuf;
+use tower_http::cors::CorsLayer;
 use tower_sessions::{
     cookie::{time::Duration, SameSite},
     Expiry, MemoryStore, SessionManagerLayer,
 };
-use tower_http::cors::CorsLayer;
-use http::{Method, header};
-use crate::auth::{finish_authentication, finish_register, start_authentication, start_register, get_current_user};
-use crate::startup::AppState;
-use crate::routes::polls;
 
 #[macro_use]
 extern crate tracing;
 
 mod auth;
-mod startup;
 mod error;
 mod models;
 mod routes;
+mod startup;
 mod websocket;
 
 #[cfg(all(feature = "javascript", feature = "wasm", not(doc)))]
@@ -28,6 +38,7 @@ compile_error!("Feature \"javascript\" and feature \"wasm\" cannot be enabled at
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "INFO");
     }
@@ -40,7 +51,11 @@ async fn main() {
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(vec![header::CONTENT_TYPE])
-        .allow_origin("http://localhost:3000".parse::<axum::http::HeaderValue>().unwrap())
+        .allow_origin(
+            "http://localhost:3000"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+        )
         .allow_credentials(true);
 
     let app = Router::new()
@@ -51,7 +66,10 @@ async fn main() {
         .route("/api/user", get(get_current_user))
         .route("/api/logout", get(crate::auth::logout))
         .merge(polls::router(app_state.broadcast_tx.clone()))
-        .route("/ws", axum::routing::get(crate::websocket::websocket_handler))
+        .route(
+            "/ws",
+            axum::routing::get(crate::websocket::websocket_handler),
+        )
         .layer(Extension(app_state))
         .layer(
             SessionManagerLayer::new(session_store)
@@ -78,7 +96,12 @@ async fn main() {
         .merge(app)
         .nest_service("/", tower_http::services::ServeDir::new("assets/js"));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let port: u16 = env::var("PORT")
+        .unwrap_or_else(|_| "8080".to_string()) // Default to 8080 if not set
+        .parse()
+        .expect("PORT must be a valid number");
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("listening on {addr}");
 
     let listener = tokio::net::TcpListener::bind(addr)

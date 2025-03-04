@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 
 const AllPollsPage = () => {
   const router = useRouter();
+  const { user } = useAppStore(); // Add user from store
   const [polls, setPolls] = useState<Poll[]>([]);
   const [votedPolls, setVotedPolls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -26,9 +27,15 @@ const AllPollsPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // WebSocket connection
+  // WebSocket connection with login check
   useEffect(() => {
     if (isHydrating) return;
+
+    if (!user) {
+      console.log('User not logged in, redirecting to /login');
+      router.push('/login');
+      return;
+    }
 
     const ws = new WebSocket('ws://localhost:8080/ws');
     wsRef.current = ws;
@@ -42,7 +49,7 @@ const AllPollsPage = () => {
         const data = JSON.parse(event.data);
         const updatedPoll: Poll = {
           ...data,
-          id: data._id?.$oid || data.id || '', // Ensure id is a string
+          id: data._id?.$oid || data.id || '',
           _id: data._id || undefined,
         };
         if (!updatedPoll.id) {
@@ -78,7 +85,7 @@ const AllPollsPage = () => {
         ws.close();
       }
     };
-  }, [isHydrating]);
+  }, [isHydrating, user, router]); // Add user and router to dependencies
 
   // Load polls and join them
   useEffect(() => {
@@ -94,7 +101,7 @@ const AllPollsPage = () => {
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
           allPolls.forEach(poll => {
-            joinPoll(poll.id); // poll.id is now guaranteed string
+            joinPoll(poll.id);
           });
         }
       } catch (err) {
@@ -178,7 +185,6 @@ const AllPollsPage = () => {
             <div className="mt-4 text-gray-500 text-sm">Check back later or create your own poll</div>
           </div>
         ) : (
-          // Warning points here, but keys are correct; React dev-mode false positive
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
             {polls.map((poll) => (
               <PollCard
