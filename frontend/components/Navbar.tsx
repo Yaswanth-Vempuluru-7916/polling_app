@@ -1,4 +1,3 @@
-// components/Navbar.tsx
 'use client';
 
 import { useState } from 'react';
@@ -72,17 +71,17 @@ const Navbar = () => {
                   </svg>
                 </button>
                 {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-md shadow-lg z-10">
-                    <div className="p-2 border-b">
+                  <div className="absolute right-0 mt-2 w-56 bg-gray-800 text-white rounded-lg shadow-xl border border-gray-700 z-10 animate-slide-down">
+                    <div className="p-4 border-b border-gray-700">
                       <p className="text-sm font-semibold">{user.username}</p>
-                      <p className="text-xs text-gray-500">{user.id}</p>
+                      <p className="text-xs text-gray-400">{user.id}</p>
                     </div>
                     <button
                       onClick={() => {
                         router.push('/profile');
                         setIsProfileOpen(false);
                       }}
-                      className="block w-full text-left p-2 hover:bg-gray-100"
+                      className="block w-full text-left p-3 hover:bg-gray-700 transition-colors duration-200"
                     >
                       Profile
                     </button>
@@ -91,7 +90,7 @@ const Navbar = () => {
                         handleLogout();
                         setIsProfileOpen(false);
                       }}
-                      className="block w-full text-left p-2 hover:bg-gray-100"
+                      className="block w-full text-left p-3 hover:bg-gray-700 transition-colors duration-200"
                     >
                       Logout
                     </button>

@@ -21,7 +21,7 @@ pub async fn websocket_handler(
 
 async fn handle_socket(socket: WebSocket, app_state: AppState) {
     info!("New WebSocket connection established");
-    let (mut ws_sender, mut ws_receiver) = socket.split();
+    let (ws_sender, mut ws_receiver) = socket.split();
     let ws_sender = Arc::new(Mutex::new(ws_sender));
     let tx = Arc::clone(&app_state.broadcast_tx);
     let mut rx = tx.subscribe();
@@ -97,7 +97,7 @@ async fn handle_socket(socket: WebSocket, app_state: AppState) {
 
     let ws_sender_broadcast = Arc::clone(&ws_sender);
     while let Ok(poll) = rx.recv().await {
-        let mut poll = poll;
+        let poll = poll;
         if poll.id.is_none() {
             error!("Poll missing ID before broadcast, skipping: {:?}", poll);
             continue;
