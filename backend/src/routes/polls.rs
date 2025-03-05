@@ -395,6 +395,20 @@ pub async fn delete_poll(
     match delete_result {
         Ok(result) if result.deleted_count > 0 => {
             info!("Poll {} deleted by user {}", poll_id, user_unique_id);
+            let deleted_poll = Poll {
+                id: Some(poll_id),
+                title: String::new(),
+                options: Vec::new(),
+                creator_id: user_unique_id,
+                is_closed: false,
+                created_at: mongodb::bson::DateTime::now(),
+                author: None,
+            };
+            info!("Broadcasting poll deletion: {:?}", deleted_poll);
+            match app_state.broadcast_tx.send(deleted_poll) {
+                Ok(_) => info!("Broadcasted poll deletion: {}", poll_id),
+                Err(e) => error!("Failed to broadcast poll deletion: {:?}", e),
+            }
             Ok(StatusCode::OK)
         }
         Ok(_) => {
@@ -407,7 +421,6 @@ pub async fn delete_poll(
         }
     }
 }
-
 pub async fn edit_poll(
     Extension(app_state): Extension<AppState>,
     session: Session,

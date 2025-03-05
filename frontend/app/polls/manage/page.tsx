@@ -125,11 +125,11 @@ const PollManagePage = () => {
     }
   };
 
-  if (isHydrating) return <div className="flex items-center justify-center h-screenbg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
+  if (isHydrating) return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
   if (!user) return null;
-  if (loading) return <div className="flex items-center justify-center h-screenbg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
-  if (error) return <div className="flex items-center justify-center h-screenbg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="p-6 bg-red-900 border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/30 text-white text-center">{error}</div></div>;
-
+  if (loading) return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin"></div></div>;
+  if (error) return <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14]"><div className="p-6 bg-red-900 border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/30 text-white text-center">{error}</div></div>;
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0d0d14] via-[#131328] to-[#0d0d14] text-white">
       <Navbar />
