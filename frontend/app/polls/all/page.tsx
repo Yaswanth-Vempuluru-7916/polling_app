@@ -47,13 +47,13 @@ const AllPollsPage = () => {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('Raw WebSocket data:', data); // Debug raw data
+        console.log('Raw WebSocket data:', data);
         const updatedPoll: Poll = {
           id: data._id?.$oid || data.id || '',
           title: data.title,
           options: data.options,
           isClosed: data.is_closed || false,
-          author: data.author || 'Unknown', // Should be username, not fallback
+          author: data.author || 'Unknown',
           _id: data._id || undefined,
         };
         if (!updatedPoll.id) {
@@ -61,15 +61,23 @@ const AllPollsPage = () => {
           return;
         }
         console.log('Received WebSocket update for poll:', updatedPoll);
-        setPolls((prevPolls) => {
-          const pollExists = prevPolls.some(p => p.id === updatedPoll.id);
-          if (pollExists) {
-            return prevPolls.map(p => (p.id === updatedPoll.id ? updatedPoll : p));
-          } else {
-            joinPoll(updatedPoll.id);
-            return [...prevPolls, updatedPoll];
-          }
-        });
+
+        // Check if the poll is "deleted" (empty title and options)
+        if (!updatedPoll.title && updatedPoll.options.length === 0) {
+          setPolls((prevPolls) => prevPolls.filter((p) => p.id !== updatedPoll.id));
+          joinedPollsRef.current.delete(updatedPoll.id); // Clean up joined polls
+          console.log('Removed deleted poll:', updatedPoll.id);
+        } else {
+          setPolls((prevPolls) => {
+            const pollExists = prevPolls.some((p) => p.id === updatedPoll.id);
+            if (pollExists) {
+              return prevPolls.map((p) => (p.id === updatedPoll.id ? updatedPoll : p));
+            } else {
+              joinPoll(updatedPoll.id);
+              return [...prevPolls, updatedPoll];
+            }
+          });
+        }
       } catch (err) {
         console.error('Error parsing WebSocket message:', err);
       }
@@ -103,7 +111,7 @@ const AllPollsPage = () => {
 
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
-          allPolls.forEach(poll => {
+          allPolls.forEach((poll) => {
             joinPoll(poll.id);
           });
         }
@@ -131,7 +139,6 @@ const AllPollsPage = () => {
       await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
       return true;
     } catch (err) {
-      // Silently handle invalid session; no need to log in console
       return false;
     }
   };
