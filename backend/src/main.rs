@@ -53,7 +53,9 @@ async fn main() {
     info!("CORS: Allowing origin: {}", rp_origin);
 
     let cors = CorsLayer::new()
-        .allow_origin("https://polling-app-two.vercel.app".parse::<HeaderValue>().unwrap())
+        .allow_origin(rp_origin
+            .parse::<HeaderValue>()
+            .expect("RP_ORIGIN must be a valid header value"),)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS]) // Ensure OPTIONS is handled
         .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION])
         .allow_credentials(true);
