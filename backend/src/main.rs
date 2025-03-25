@@ -12,7 +12,7 @@ use axum::{
     Router,
 };
 use dotenvy::dotenv;
-use http::{header, Method};
+use http::{header, HeaderValue, Method};
 use std::env;
 use std::net::SocketAddr;
 use tokio::signal;
@@ -53,10 +53,10 @@ async fn main() {
     info!("CORS: Allowing origin: {}", rp_origin);
 
     let cors = CorsLayer::new()
-        .allow_origin(tower_http::cors::Any)
+        .allow_origin("https://polling-app-two.vercel.app".parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS]) // Ensure OPTIONS is handled
         .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION])
-        .allow_credentials(true); // Required for cookies/auth headers
+        .allow_credentials(true);
 
     // Session management
     let session_layer = SessionManagerLayer::new(session_store)
