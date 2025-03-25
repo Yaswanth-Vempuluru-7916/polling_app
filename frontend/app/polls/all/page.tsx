@@ -139,6 +139,7 @@ const AllPollsPage = () => {
       await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user`, { withCredentials: true });
       return true;
     } catch (err) {
+      console.log(`validateSession function : ${err}`);
       return false;
     }
   };

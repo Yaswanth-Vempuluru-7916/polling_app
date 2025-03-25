@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import PollForm from '@/components/polls/PollForm';
 import { createPoll } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';

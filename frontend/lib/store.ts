@@ -14,7 +14,9 @@ export interface Poll {
   title: string;
   options: PollOption[];
   isClosed: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   creator_id?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   created_at?: any;
   author: string; // Added author
 }

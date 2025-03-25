@@ -63,7 +63,7 @@ const ProfilePage = () => {
         ws.close();
       };
     }
-  }, [isHydrating, user, polls.length]);
+  }, [isHydrating, user, polls]);
 
   if (isHydrating) return <div className="text-center p-4">Loading...</div>;
   if (!user) return null;

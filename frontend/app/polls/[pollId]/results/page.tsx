@@ -49,15 +49,15 @@ const PollResultsPage = () => {
   // WebSocket for live updates
   useEffect(() => {
     if (isHydrating || !pollId) return;
-
+  
     const ws = new WebSocket(process.env.NEXT_PUBLIC_WS_URL as string);
     wsRef.current = ws;
-
+  
     ws.onopen = () => {
       console.log(`Connected to WebSocket for poll ${pollId}`);
       ws.send(`join_poll:${pollId}`);
     };
-
+  
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -79,23 +79,23 @@ const PollResultsPage = () => {
         console.error('Error parsing WebSocket message:', err);
       }
     };
-
+  
     ws.onerror = (err: Event) => {
       console.error('WebSocket error:', err);
     };
-
+  
     ws.onclose = (event) => {
       console.log('WebSocket closed:', event.code, event.reason);
       wsRef.current = null;
     };
-
+  
     return () => {
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }
     };
-  }, [isHydrating, pollId]);
-
+  }, [isHydrating, pollId, updatePoll]);
+  
   if (isHydrating || loading) return <div className="text-center p-4">Loading...</div>;
   if (error) return <div className="text-center p-4 text-red-500">{error}</div>;
   if (!poll) return <div className="text-center p-4">Poll not found.</div>;

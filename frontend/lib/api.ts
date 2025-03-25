@@ -18,7 +18,7 @@ interface EditPollData {
   title: string;
   options: string[];
 }
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const normalizePoll = (poll: any): Poll => {
   const id = poll._id?.$oid || poll.id;
   if (!id) throw new Error('Poll missing valid ID');

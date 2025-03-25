@@ -8,6 +8,7 @@ interface PollOption {
 }
 
 interface Poll {
+  // eslint-disable-next-line @typescript-eslint/no-wrapper-object-types
   id: String;
   title: string;
   options: PollOption[];
