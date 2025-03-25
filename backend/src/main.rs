@@ -53,13 +53,9 @@ async fn main() {
     info!("CORS: Allowing origin: {}", rp_origin);
 
     let cors = CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS]) // Ensure OPTIONS is handled
         .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION])
-        .allow_origin(
-            rp_origin
-                .parse::<axum::http::HeaderValue>()
-                .expect("RP_ORIGIN must be a valid header value"),
-        )
         .allow_credentials(true); // Required for cookies/auth headers
 
     // Session management
