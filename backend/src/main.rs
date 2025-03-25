@@ -6,9 +6,9 @@ use crate::routes::polls;
 use crate::startup::AppState;
 use axum::{
     extract::Extension,
-    http::StatusCode,
+    http::{self, StatusCode, Method as HttpMethod},
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, options},
     Router,
 };
 use dotenvy::dotenv;
@@ -17,13 +17,13 @@ use std::net::SocketAddr;
 use std::env;
 #[cfg(feature = "wasm")]
 use std::path::PathBuf;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{CorsLayer, Any};
 use tower_sessions::{
-    cookie::{time::Duration, SameSite},
-    Expiry, SessionManagerLayer, SessionStore, 
+    cookie::{time::Duration as SessionDuration, SameSite}, // CHANGE: Rename to avoid conflict
+    Expiry, SessionManagerLayer,
 };
 use tower_sessions_mongodb_store::{mongodb::Client, MongoDBStore};
-use tokio::signal; // CHANGE: For basic graceful shutdown
+use tokio::signal;
 
 #[macro_use]
 extern crate tracing;
@@ -55,28 +55,29 @@ async fn main() {
     let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN must be set in environment variables");
     info!("CORS: Allowing origin: {}", rp_origin);
     let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION])
+        .allow_methods([HttpMethod::GET, HttpMethod::POST, HttpMethod::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION])
         .allow_origin(
             rp_origin
-                .parse::<axum::http::HeaderValue>()
+                .parse::<http::HeaderValue>()
                 .expect("RP_ORIGIN must be a valid header value"),
         )
-        .allow_credentials(true);
+        .allow_credentials(true)
+        .max_age(std::time::Duration::from_secs(86400)); // CHANGE: Use std::time::Duration
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_name("webauthnrs")
         .with_same_site(SameSite::None)
         .with_secure(true)
-        .with_expiry(Expiry::OnInactivity(Duration::seconds(360)))
+        .with_expiry(Expiry::OnInactivity(SessionDuration::seconds(360))) // CHANGE: Use SessionDuration
         .with_http_only(true)
         .with_path("/");
 
     let app = Router::new()
-        .route("/register_start/:username", post(start_register))
-        .route("/register_finish", post(finish_register))
-        .route("/login_start/:username", post(start_authentication))
-        .route("/login_finish", post(finish_authentication))
+        .route("/register_start/:username", post(start_register).options(cors_options_handler))
+        .route("/register_finish", post(finish_register).options(cors_options_handler))
+        .route("/login_start/:username", post(start_authentication).options(cors_options_handler))
+        .route("/login_finish", post(finish_authentication).options(cors_options_handler))
         .route("/api/user", get(get_current_user))
         .route("/api/logout", get(crate::auth::logout))
         .merge(polls::router(app_state.broadcast_tx.clone()))
@@ -116,7 +117,6 @@ async fn main() {
         .await
         .expect("Unable to spawn tcp listener");
 
-    // CHANGE: Add basic graceful shutdown without deletion task
     axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -127,7 +127,11 @@ async fn handler_404() -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Nothing to see here")
 }
 
-// CHANGE: Basic shutdown signal handler
+async fn cors_options_handler() -> impl IntoResponse {
+    info!("Handling OPTIONS request for CORS preflight");
+    StatusCode::OK
+}
+
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
