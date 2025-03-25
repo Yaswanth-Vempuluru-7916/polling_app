@@ -15,7 +15,7 @@ url = "2"
 thiserror = "1.0"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "fs"] }
-tower-sessions = "0.13"
+tower-sessions = "0.11.0"
 http = "1.2.0"
 mongodb = "3.2.1"
 dotenv = "0.15.0"
@@ -25,6 +25,7 @@ tokio-tungstenite = "0.26.2"
 futures-util = "0.3.31"
 serde_json = "1.0.139"
 dotenvy = "0.15.7"
+tower-sessions-mongodb-store = "0.11.0"
 
 [features]
 default = ["javascript"]

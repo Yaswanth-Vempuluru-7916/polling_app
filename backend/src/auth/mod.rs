@@ -10,13 +10,19 @@ use mongodb::bson::doc;
 use uuid::Uuid;
 use crate::error::WebauthnError;
 use crate::startup::{AppState, UserData};
+use std::env;
+use dotenv::dotenv;
 
 pub async fn start_register(
     Extension(app_state): Extension<AppState>,
     session: Session,
     Path(username): Path<String>,
 ) -> Result<impl IntoResponse, WebauthnError> {
+    dotenv().ok();
     info!("Start register for username: {}", username);
+
+    let session_id = session.id().map(|id| id.to_string()).unwrap_or("None".to_string());
+    info!("Session ID in start_register: {}", session_id);
 
     let user_unique_id = Uuid::new_v4();
 
@@ -51,7 +57,6 @@ pub async fn start_register(
         exclude_credentials,
     ) {
         Ok((ccr, reg_state)) => {
-            // CHANGE: Add logging to confirm session insertion
             if let Err(e) = session.insert("reg_state", (username.clone(), user_unique_id, reg_state)).await {
                 error!("Failed to insert reg_state into session: {:?}", e);
                 return Err(WebauthnError::InvalidSessionState(e));
@@ -64,9 +69,12 @@ pub async fn start_register(
             return Err(WebauthnError::Unknown);
         }
     };
+
+    info!("Setting session cookie for session ID: {}", session_id);
+    // CHANGE: Log CORS headers being set
+    info!("Setting CORS headers: Access-Control-Allow-Origin: {}", env::var("RP_ORIGIN").unwrap_or_default());
     Ok(res)
 }
-
 pub async fn finish_register(
     Extension(app_state): Extension<AppState>,
     session: Session,

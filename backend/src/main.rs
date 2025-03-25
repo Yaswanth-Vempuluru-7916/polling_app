@@ -20,8 +20,10 @@ use std::path::PathBuf;
 use tower_http::cors::CorsLayer;
 use tower_sessions::{
     cookie::{time::Duration, SameSite},
-    Expiry, MemoryStore, SessionManagerLayer,
+    Expiry, SessionManagerLayer, SessionStore, 
 };
+use tower_sessions_mongodb_store::{mongodb::Client, MongoDBStore};
+use tokio::signal; // CHANGE: For basic graceful shutdown
 
 #[macro_use]
 extern crate tracing;
@@ -46,18 +48,29 @@ async fn main() {
 
     let app_state = AppState::new().await;
 
-    let session_store = MemoryStore::default();
+    let mongo_uri = env::var("MONGODB_URI").expect("MONGODB_URI must be set in environment variables");
+    let client = Client::with_uri_str(&mongo_uri).await.expect("Failed to connect to MongoDB");
+    let session_store = MongoDBStore::new(client, "polling-app".to_string());
 
+    let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN must be set in environment variables");
+    info!("CORS: Allowing origin: {}", rp_origin);
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT])
+        .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT, header::AUTHORIZATION])
         .allow_origin(
-            env::var("RP_ORIGIN")
-                .expect("RP_ORIGIN must be set in environment variables")
+            rp_origin
                 .parse::<axum::http::HeaderValue>()
                 .expect("RP_ORIGIN must be a valid header value"),
         )
         .allow_credentials(true);
+
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_name("webauthnrs")
+        .with_same_site(SameSite::None)
+        .with_secure(true)
+        .with_expiry(Expiry::OnInactivity(Duration::seconds(360)))
+        .with_http_only(true)
+        .with_path("/");
 
     let app = Router::new()
         .route("/register_start/:username", post(start_register))
@@ -72,14 +85,8 @@ async fn main() {
             axum::routing::get(crate::websocket::websocket_handler),
         )
         .layer(Extension(app_state))
-        .layer(
-            SessionManagerLayer::new(session_store)
-                .with_name("webauthnrs")
-                .with_same_site(SameSite::Strict)
-                .with_secure(false)
-                .with_expiry(Expiry::OnInactivity(Duration::seconds(360))),
-        )
         .layer(cors)
+        .layer(session_layer)
         .fallback(handler_404);
 
     #[cfg(feature = "wasm")]
@@ -109,9 +116,38 @@ async fn main() {
         .await
         .expect("Unable to spawn tcp listener");
 
-    axum::serve(listener, app).await.unwrap();
+    // CHANGE: Add basic graceful shutdown without deletion task
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
 }
 
 async fn handler_404() -> impl IntoResponse {
     (StatusCode::NOT_FOUND, "Nothing to see here")
+}
+
+// CHANGE: Basic shutdown signal handler
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
