@@ -69,6 +69,12 @@ export const fetchUserPolls = async (): Promise<Poll[]> => {
     useAppStore.getState().setPolls(normalizedPolls);
     return normalizedPolls;
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Session is invalid, redirect to login
+      useAppStore.getState().clearState();
+      window.location.href = '/login';
+      throw new Error('Session expired. Please log in again.');
+    }
     throw handleError(error, 'Failed to fetch your polls');
   }
 };

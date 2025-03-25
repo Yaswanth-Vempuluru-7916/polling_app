@@ -26,16 +26,16 @@ pub enum WebauthnError {
 
 impl IntoResponse for WebauthnError {
     fn into_response(self) -> Response {
-        let body = match self {
-            WebauthnError::CorruptSession => "Corrupt Session",
-            WebauthnError::UserNotFound => "User Not Found",
-            WebauthnError::Unknown => "Unknown Error",
-            WebauthnError::UserHasNoCredentials => "User Has No Credentials",
-            WebauthnError::InvalidSessionState(_) => "Deserialising Session failed",
+        let (status, body) = match self {
+            WebauthnError::CorruptSession => (StatusCode::UNAUTHORIZED, "Corrupt Session"),
+            WebauthnError::UserNotFound => (StatusCode::NOT_FOUND, "User Not Found"),
+            WebauthnError::Unknown => (StatusCode::BAD_REQUEST, "Unknown Error"),
+            WebauthnError::UserHasNoCredentials => (StatusCode::BAD_REQUEST, "User Has No Credentials"),
+            WebauthnError::InvalidSessionState(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Deserialising Session failed"),
             WebauthnError::MongoDBError(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
             WebauthnError::BsonError(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
             WebauthnError::UuidError(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
         };
-        (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+        (status, body).into_response()
     }
 }
