@@ -49,13 +49,13 @@ async fn main() {
     let session_store = MemoryStore::default();
 
     let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST])
-        .allow_headers(vec![header::CONTENT_TYPE])
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(vec![header::CONTENT_TYPE, header::ACCEPT])
         .allow_origin(
             env::var("RP_ORIGIN")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string())
+                .expect("RP_ORIGIN must be set in environment variables")
                 .parse::<axum::http::HeaderValue>()
-                .unwrap(),
+                .expect("RP_ORIGIN must be a valid header value"),
         )
         .allow_credentials(true);
 

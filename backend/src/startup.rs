@@ -44,9 +44,8 @@ impl AppState {
         dotenv().ok();
 
         // Load from environment variables with fallbacks for local dev
-        let rp_id = env::var("RP_ID").unwrap_or_else(|_| "localhost".to_string());
-        let rp_origin = env::var("RP_ORIGIN")
-            .unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let rp_id = env::var("RP_ID").expect("RP_ID must be set in environment variables");
+        let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN must be set in environment variables");
         let rp_name = env::var("RP_NAME")
             .unwrap_or_else(|_| "Axum Webauthn-rs".to_string());
 

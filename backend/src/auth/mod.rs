@@ -51,11 +51,12 @@ pub async fn start_register(
         exclude_credentials,
     ) {
         Ok((ccr, reg_state)) => {
+            // CHANGE: Add logging to confirm session insertion
             if let Err(e) = session.insert("reg_state", (username.clone(), user_unique_id, reg_state)).await {
                 error!("Failed to insert reg_state into session: {:?}", e);
                 return Err(WebauthnError::InvalidSessionState(e));
             }
-            info!("Registration challenge generated for {} (UUID: {})", username, user_unique_id);
+            info!("Successfully inserted reg_state into session for {} (UUID: {})", username, user_unique_id);
             Json(ccr)
         }
         Err(e) => {
@@ -71,6 +72,8 @@ pub async fn finish_register(
     session: Session,
     Json(reg): Json<RegisterPublicKeyCredential>,
 ) -> Result<impl IntoResponse, WebauthnError> {
+    // CHANGE: Add logging to debug session retrieval
+    info!("Attempting to retrieve reg_state from session");
     let (username, user_unique_id, reg_state): (String, Uuid, PasskeyRegistration) = session
         .get("reg_state")
         .await?
