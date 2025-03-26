@@ -85,7 +85,7 @@ async fn main() {
         .fallback(handler_404);
 
     let port: u16 = env::var("PORT")
-        .unwrap_or_else(|_| "8080".to_string())
+        .unwrap_or_else(|_| "10000".to_string())
         .parse()
         .expect("PORT must be a valid number");
 
