@@ -49,15 +49,17 @@ jobs:
           AWS_EC2_IP: ${{ secrets.AWS_EC2_IP }}
         run: |
           ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
-            # Install Git if not present
+            # Install dependencies if not present
             sudo apt update -y
-            sudo apt install -y git
-
-            # Install Docker if not present
-            sudo apt install -y docker.io
+            sudo apt install -y git docker.io
+            
+            # Start and enable Docker
             sudo systemctl start docker
             sudo systemctl enable docker
+
+            # Add user to Docker group and apply changes immediately
             sudo usermod -aG docker ubuntu
+            newgrp docker
 
             # Install Docker Compose if not present
             sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -75,20 +77,19 @@ jobs:
             git pull origin main
 
             # Ensure backend/.env exists with the correct Elastic IP
-            echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" > backend/.env
-            echo "PORT=10000" >> backend/.env
-            echo "RP_ID=${{ secrets.AWS_EC2_IP }}" >> backend/.env
-            echo "RP_ORIGIN=http://${{ secrets.AWS_EC2_IP }}:3000" >> backend/.env
-            echo "RP_NAME=Polling App" >> backend/.env
+            cat <<EOT > backend/.env
+            MONGODB_URI=${{ secrets.MONGODB_URI }}
+            PORT=10000
+            RP_ID=${{ secrets.AWS_EC2_IP }}
+            RP_ORIGIN=http://${{ secrets.AWS_EC2_IP }}:3000
+            RP_NAME=Polling App
+            EOT
 
-            # Refresh group membership for Docker (to avoid permission issues)
-            newgrp docker << 'INNER_EOF'
-              # Stop any running containers
+            # Run docker-compose commands with docker group
+            sg docker -c "
               docker-compose down
-
-              # Start the app
               docker-compose up -d
-            INNER_EOF
+            "
 
             # If the above fails, try with sudo as a fallback
             if [ $? -ne 0 ]; then
@@ -101,12 +102,12 @@ jobs:
         if: success()
         run: |
           curl -X POST -H "Content-Type: application/json" \
-            -d '{"content": "Deployment successful! Polling app is live at http://${{ secrets.AWS_EC2_IP }}:3000"}' \
+            -d '{"content": "🚀 Deployment successful! Polling app is live at http://${{ secrets.AWS_EC2_IP }}:3000"}' \
             ${{ secrets.DISCORD_WEBHOOK_URL }}
 
       - name: Notify Discord on Failure
         if: failure()
         run: |
           curl -X POST -H "Content-Type: application/json" \
-            -d '{"content": "Deployment failed! Check GitHub Actions logs."}' \
+            -d '{"content": "❌ Deployment failed! Check GitHub Actions logs."}' \
             ${{ secrets.DISCORD_WEBHOOK_URL }}
