@@ -81,11 +81,20 @@ jobs:
             echo "RP_ORIGIN=http://${{ secrets.AWS_EC2_IP }}:3000" >> backend/.env
             echo "RP_NAME=Polling App" >> backend/.env
 
-            # Stop any running containers
-            docker-compose down
+            # Refresh group membership for Docker (to avoid permission issues)
+            newgrp docker << 'INNER_EOF'
+              # Stop any running containers
+              docker-compose down
 
-            # Start the app
-            docker-compose up -d
+              # Start the app
+              docker-compose up -d
+            INNER_EOF
+
+            # If the above fails, try with sudo as a fallback
+            if [ $? -ne 0 ]; then
+              sudo docker-compose down
+              sudo docker-compose up -d
+            fi
           EOF
 
       - name: Notify Discord on Success
