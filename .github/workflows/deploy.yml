@@ -49,10 +49,42 @@ jobs:
           AWS_EC2_IP: ${{ secrets.AWS_EC2_IP }}
         run: |
           ssh -i ~/.ssh/id_rsa ubuntu@${{ secrets.AWS_EC2_IP }} << 'EOF'
+            # Install Git if not present
+            sudo apt update -y
+            sudo apt install -y git
+
+            # Install Docker if not present
+            sudo apt install -y docker.io
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ubuntu
+
+            # Install Docker Compose if not present
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+
+            # Clone the repository if it doesn't exist
+            if [ ! -d "polling_app" ]; then
+              git clone https://github.com/Yaswanth-Vempuluru-7916/polling_app.git
+            fi
+
+            # Navigate to the project directory
             cd polling_app
+
+            # Pull the latest code
             git pull origin main
-            export AWS_EC2_IP=${{ secrets.AWS_EC2_IP }}
+
+            # Ensure backend/.env exists with the correct Elastic IP
+            echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" > backend/.env
+            echo "PORT=10000" >> backend/.env
+            echo "RP_ID=${{ secrets.AWS_EC2_IP }}" >> backend/.env
+            echo "RP_ORIGIN=http://${{ secrets.AWS_EC2_IP }}:3000" >> backend/.env
+            echo "RP_NAME=Polling App" >> backend/.env
+
+            # Stop any running containers
             docker-compose down
+
+            # Start the app
             docker-compose up -d
           EOF
 
